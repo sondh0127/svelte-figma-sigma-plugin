@@ -530,22 +530,22 @@ type PublishStatus = 'UNPUBLISHED' | 'CURRENT' | 'CHANGED'
 ////////////////////////////////////////////////////////////////////////////////
 // Mixins
 
-interface BaseNodeMixin {
+interface SBaseNodeMixin {
 	readonly id: string
-	readonly parent: (BaseNode & ChildrenMixin) | null
-	name: string // Note: setting this also sets `autoRename` to false on TextNodes
-	readonly removed: boolean
-	toString(): string
-	remove(): void
+	// readonly parent: (BaseNode & ChildrenMixin) | null
+	// name: string // Note: setting this also sets `autoRename` to false on TextNodes
+	// readonly removed: boolean
+	// toString(): string
+	// remove(): void
 
-	getPluginData(key: string): string
-	setPluginData(key: string, value: string): void
+	// getPluginData(key: string): string
+	// setPluginData(key: string, value: string): void
 
-	// Namespace is a string that must be at least 3 alphanumeric characters, and should
-	// be a name related to your plugin. Other plugins will be able to read this data.
-	getSharedPluginData(namespace: string, key: string): string
-	setSharedPluginData(namespace: string, key: string, value: string): void
-	setRelaunchData(data: { [command: string]: /* description */ string }): void
+	// // Namespace is a string that must be at least 3 alphanumeric characters, and should
+	// // be a name related to your plugin. Other plugins will be able to read this data.
+	// getSharedPluginData(namespace: string, key: string): string
+	// setSharedPluginData(namespace: string, key: string, value: string): void
+	// setRelaunchData(data: { [command: string]: /* description */ string }): void
 }
 
 interface SceneNodeMixin {
@@ -678,7 +678,7 @@ interface PublishableMixin {
 }
 
 interface DefaultShapeMixin
-	extends BaseNodeMixin,
+	extends SBaseNodeMixin,
 		SceneNodeMixin,
 		ReactionMixin,
 		BlendMixin,
@@ -686,8 +686,8 @@ interface DefaultShapeMixin
 		LayoutMixin,
 		ExportMixin {}
 
-interface BaseFrameMixin
-	extends BaseNodeMixin,
+interface SBaseFrameMixin
+	extends SBaseNodeMixin,
 		SceneNodeMixin,
 		ChildrenMixin,
 		ContainerMixin,
@@ -720,15 +720,15 @@ interface BaseFrameMixin
 	guides: ReadonlyArray<Guide>
 }
 
-interface DefaultFrameMixin
-	extends BaseFrameMixin,
+interface SDefaultFrameMixin
+	extends SBaseFrameMixin,
 		FramePrototypingMixin,
 		ReactionMixin {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Nodes
 
-interface DocumentNode extends BaseNodeMixin {
+interface DocumentNode extends SBaseNodeMixin {
 	readonly type: 'DOCUMENT'
 
 	readonly children: ReadonlyArray<PageNode>
@@ -755,7 +755,7 @@ interface DocumentNode extends BaseNodeMixin {
 	): PageNode | SceneNode | null
 }
 
-interface PageNode extends BaseNodeMixin, ChildrenMixin, ExportMixin {
+interface PageNode extends SBaseNodeMixin, ChildrenMixin, ExportMixin {
 	readonly type: 'PAGE'
 	clone(): PageNode
 
@@ -773,13 +773,13 @@ interface PageNode extends BaseNodeMixin, ChildrenMixin, ExportMixin {
 		| null
 }
 
-interface FrameNode extends DefaultFrameMixin {
+interface FrameNode extends SDefaultFrameMixin {
 	readonly type: 'FRAME'
 	clone(): FrameNode
 }
 
 interface GroupNode
-	extends BaseNodeMixin,
+	extends SBaseNodeMixin,
 		SceneNodeMixin,
 		ReactionMixin,
 		ChildrenMixin,
@@ -792,7 +792,7 @@ interface GroupNode
 }
 
 interface SliceNode
-	extends BaseNodeMixin,
+	extends SBaseNodeMixin,
 		SceneNodeMixin,
 		LayoutMixin,
 		ExportMixin {
@@ -901,25 +901,25 @@ interface TextNode extends DefaultShapeMixin, ConstraintMixin {
 	setRangeFillStyleId(start: number, end: number, value: string): void
 }
 
-interface ComponentSetNode extends BaseFrameMixin, PublishableMixin {
+interface ComponentSetNode extends SBaseFrameMixin, PublishableMixin {
 	readonly type: 'COMPONENT_SET'
 	clone(): ComponentSetNode
 	readonly defaultVariant: ComponentNode
 }
 
-interface ComponentNode extends DefaultFrameMixin, PublishableMixin {
+interface ComponentNode extends SDefaultFrameMixin, PublishableMixin {
 	readonly type: 'COMPONENT'
 	clone(): ComponentNode
 	createInstance(): SInstanceNode
 }
 
-export interface SInstanceNode extends DefaultFrameMixin {
+export interface SInstanceNode extends SDefaultFrameMixin {
 	readonly type: 'INSTANCE'
-	clone(): SInstanceNode
-	mainComponent: ComponentNode | null
-	swapComponent(componentNode: ComponentNode): void
-	detachInstance(): FrameNode
-	scaleFactor: number
+	// clone(): SInstanceNode
+	// mainComponent: ComponentNode | null
+	// swapComponent(componentNode: ComponentNode): void
+	// detachInstance(): FrameNode
+	// scaleFactor: number
 }
 
 interface BooleanOperationNode

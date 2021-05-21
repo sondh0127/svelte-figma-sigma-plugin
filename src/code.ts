@@ -44,7 +44,8 @@ const run = () => {
 
 					if (includeComponent.includes(mainComponentName)) {
 						// search google this
-						const { id, type, reactions } = selection[0]
+						// Object.keys() from interface ??????????/
+						const { id, type, reactions, layoutMode } = selection[0]
 
 						const node: SInstanceNode = { id, type, reactions }
 						figma.ui.postMessage({
