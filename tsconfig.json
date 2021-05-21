@@ -1,7 +1,7 @@
 {
   "extends": "@tsconfig/svelte/tsconfig.json",
   "compilerOptions": {
-    "isolatedModules": false,
+    "isolatedModules": true,
     "types": [
       "@types/node",
       "@figma/plugin-typings",

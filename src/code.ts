@@ -1,63 +1,94 @@
-// This plugin will open a modal to prompt the user to enter a number, and
-// it will then create that many rectangles on the screen.
+import { retrieveTailwindText } from './tailwind/retrieveUI/retrieveTexts'
+import {
+	retrieveGenericLinearGradients,
+	retrieveGenericSolidUIColors,
+} from './common/retrieveUI/retrieveColors'
+import { tailwindMain } from './tailwind/tailwindMain'
+import { convertIntoAltNodes } from './altNodes/altConversion'
 
-// This file holds the main code for the plugins. It has access to the *document*.
-// You can access browser APIs in the <script> tag inside "ui.html" which has a
-// full browser enviroment (see documentation).
 let parentId: string
 let isJsx = false
 let layerName = false
 let material = true
 
-let mode: 'flutter' | 'swiftui' | 'html' | 'tailwind'
-// This shows the HTML page in "ui.html".
+let mode: 'tailwind'
+
 figma.showUI(__html__, { width: 450, height: 550 })
 
-// Calls to "parent.postMessage" from within the HTML page will trigger this
-// callback. The callback will be passed the "pluginMessage" property of the
-// posted message.
+const run = () => {
+	// ignore when nothing was selected
+	if (figma.currentPage.selection.length === 0) {
+		figma.ui.postMessage({
+			type: 'empty',
+		})
+		return
+	}
+
+	// check [ignoreStackParent] description
+	if (figma.currentPage.selection.length > 0) {
+		parentId = figma.currentPage.selection[0].parent?.id ?? ''
+	}
+
+	let result = ''
+	console.log(
+		'🇻🇳 ~ file: code.ts ~ line 38 ~ figma.currentPage.selection',
+		figma.currentPage.selection[0],
+	)
+	const convertedSelection = convertIntoAltNodes(
+		figma.currentPage.selection,
+		null,
+	)
+	console.log(
+		'🇻🇳 ~ file: code.ts ~ line 41 ~ convertedSelection',
+		convertedSelection,
+	)
+
+	if (mode === 'tailwind') {
+		result = tailwindMain(convertedSelection, parentId, isJsx, layerName)
+	}
+
+	figma.ui.postMessage({
+		type: 'result',
+		data: result,
+	})
+
+	if (mode === 'tailwind') {
+		figma.ui.postMessage({
+			type: 'colors',
+			data: retrieveGenericSolidUIColors(convertedSelection, mode),
+		})
+
+		figma.ui.postMessage({
+			type: 'gradients',
+			data: retrieveGenericLinearGradients(convertedSelection, mode),
+		})
+	}
+	if (mode === 'tailwind') {
+		figma.ui.postMessage({
+			type: 'text',
+			data: retrieveTailwindText(convertedSelection),
+		})
+	}
+}
+
+figma.on('selectionchange', () => {
+	run()
+})
+
+// efficient? No. Works? Yes.
+// todo pass data instead of relying in types
 figma.ui.onmessage = (msg) => {
-	// One way of distinguishing between different types of messages sent from
-	// your HTML page is to use an object with a "type" property like this.
-	if (msg.type === 'create-shapes') {
-		const nodes: SceneNode[] = []
-
-		for (let i = 0; i < msg.count; i++) {
-			var shape
-
-			if (msg.shape === 'rectangle') {
-				shape = figma.createRectangle()
-			} else if (msg.shape === 'triangle') {
-				shape = figma.createPolygon()
-			} else if (msg.shape === 'line') {
-				shape = figma.createLine()
-			} else {
-				shape = figma.createEllipse()
-			}
-
-			shape.x = i * 150
-			shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
-			figma.currentPage.appendChild(shape)
-			nodes.push(shape)
-		}
-
-		figma.currentPage.selection = nodes
-		figma.viewport.scrollAndZoomIntoView(nodes)
+	if (msg.type === 'tailwind') {
+		mode = msg.type
+		run()
+	} else if (msg.type === 'jsx' && msg.data !== isJsx) {
+		isJsx = msg.data
+		run()
+	} else if (msg.type === 'layerName' && msg.data !== layerName) {
+		layerName = msg.data
+		run()
+	} else if (msg.type === 'material' && msg.data !== material) {
+		material = msg.data
+		run()
 	}
-
-	if (msg.type === 'info') {
-		figma.currentPage.selection[0]
-			.exportAsync({ format: 'PNG' })
-			.then((result) => {
-				console.log('🇻🇳 ~ file: code.ts ~ line 47 ~ result', result)
-				figma.ui.postMessage({
-					type: 'export-png',
-					result: result,
-				})
-			})
-	}
-
-	// Make sure to close the plugin when you're done. Otherwise the plugin will
-	// keep running, which shows the cancel button at the bottom of the screen.
-	figma.closePlugin()
 }
