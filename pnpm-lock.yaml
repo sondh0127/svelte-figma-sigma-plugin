@@ -3,6 +3,7 @@ lockfileVersion: 5.3
 specifiers:
   '@figma/plugin-typings': ^1.23.0
   '@rollup/plugin-commonjs': ^19.0.0
+  '@rollup/plugin-image': ^2.0.6
   '@rollup/plugin-node-resolve': ^13.0.0
   '@rollup/plugin-typescript': ^8.2.1
   '@tsconfig/svelte': ^1.0.10
@@ -34,6 +35,7 @@ dependencies:
 devDependencies:
   '@figma/plugin-typings': 1.23.0
   '@rollup/plugin-commonjs': 19.0.0_rollup@2.48.0
+  '@rollup/plugin-image': 2.0.6_rollup@2.48.0
   '@rollup/plugin-node-resolve': 13.0.0_rollup@2.48.0
   '@rollup/plugin-typescript': 8.2.1_0969daa3475b3be6a148ff4d6fc45800
   '@tsconfig/svelte': 1.0.10
@@ -91,6 +93,17 @@ packages:
       is-reference: 1.2.1
       magic-string: 0.25.7
       resolve: 1.20.0
+      rollup: 2.48.0
+    dev: true
+
+  /@rollup/plugin-image/2.0.6_rollup@2.48.0:
+    resolution: {integrity: sha512-bB+spXogbPiFjhBS7i8ajUOgOnVwWK3bnJ6VroxKey/q8/EPRkoSh+4O1qPCw97qMIDspF4TlzXVBhZ7nojIPw==}
+    engines: {node: '>= 8.0.0'}
+    peerDependencies:
+      rollup: ^1.20.0 || ^2.0.0
+    dependencies:
+      '@rollup/pluginutils': 3.1.0_rollup@2.48.0
+      mini-svg-data-uri: 1.3.3
       rollup: 2.48.0
     dev: true
 
@@ -706,6 +719,11 @@ packages:
   /min-indent/1.0.1:
     resolution: {integrity: sha512-I9jwMn07Sy/IwOj3zVkVik2JTvgpaykDZEigL6Rx6N9LbMywwUSMtxET+7lVoDLLd3O3IXwJwvuuns8UB/HeAg==}
     engines: {node: '>=4'}
+    dev: true
+
+  /mini-svg-data-uri/1.3.3:
+    resolution: {integrity: sha512-+fA2oRcR1dJI/7ITmeQJDrYWks0wodlOz0pAEhKYJ2IVc1z0AnwJUsKY2fzFmPAM3Jo9J0rBx8JAA9QQSJ5PuA==}
+    hasBin: true
     dev: true
 
   /minimatch/3.0.4:

@@ -1,8 +1,9 @@
-<script>
+<script lang="ts">
 	import ItemColor from './TailwindItemColor.svelte'
 	import ItemText from './TailwindItemText.svelte'
 	import SectionGradient from './GenericGradientSection.svelte'
 	import SectionSolid from './GenericSolidColorSection.svelte'
+	import imageKeypad from '../assets/Keypad.png'
 
 	import Prism from 'svelte-prism'
 	import 'prism-theme-night-owl'
@@ -85,82 +86,133 @@
 
 	// INIT
 	import { onMount } from 'svelte'
-	onMount(() => {
-		parent.postMessage({ pluginMessage: { type: 'tailwind' } }, '*')
+	import TabControl from '../components/TabControl.svelte'
+	import TabControlItem from '../components/TabControlItem.svelte'
+	import { Label } from '../components/figma-plugin-ds-svelte'
+	import { encode } from '../helper'
+
+	onMount(async () => {
+		const canvas = document.createElement('canvas')
+		const ctx = canvas.getContext('2d')
+		canvas.width = (imageKeypad as HTMLImageElement).width
+		canvas.height = (imageKeypad as HTMLImageElement).height
+
+		ctx.drawImage(imageKeypad, 0, 0)
+
+		const newBytes = await new Promise((resolve, reject) => {
+			canvas.toBlob((blob) => {
+				const reader = new FileReader()
+				reader.onload = () => resolve(new Uint8Array(reader.result))
+				reader.onerror = () => reject(new Error('Could not read from blob'))
+				reader.readAsArrayBuffer(blob)
+			})
+		})
+		document.getElementById('imageContainer').appendChild(canvas)
+
+		const assets = { Keypad: newBytes }
+		parent.postMessage({ pluginMessage: { type: 'tailwind', assets } }, '*')
 	})
 
 	const sectionStyle = 'border rounded-lg bg-white'
+
+	function createInstance() {
+		parent.postMessage(
+			{
+				pluginMessage: {
+					type: 'createInstance',
+					component: 'Keypad',
+				},
+			},
+			'*',
+		)
+	}
 </script>
 
-<div>
-	<div class="flex flex-col items-center p-4 bg-gray-50">
-		<div class="flex space-x-4 mt-2">
-			<a href="https://play.tailwindcss.com/" target="_blank">
-				<Button variant="secondary">Tailwind Play</Button>
-			</a>
-		</div>
+<TabControl>
+	<div class="flex items-center" slot="tabs" let:tabs>
+		{#each tabs as { active, disabled, payload, select }, i}
+			<Label {active} on:click={select} {disabled}>
+				{payload}
+			</Label>
+		{/each}
 	</div>
-</div>
-
-<div class="px-2 pt-2 bg-gray-50">
-	{#if emptySelection}
-		<div
-			class="flex flex-col space-y-2 m-auto items-center justify-center p-4 {sectionStyle}"
-		>
-			<p class="text-lg font-bold">Nothing is selected</p>
-			<p class="text-xs">Try selecting a layer, any layer</p>
-		</div>
-	{:else}
-		<div class="w-full pt-2 {sectionStyle}">
-			<div class="flex items-center justify-between px-2 space-x-2">
-				<Button variant="primary" on:click={clipboard(codeObservable)}>
-					Copy
-				</Button>
-			</div>
-
-			<Prism language="html" source={codeObservable} />
-
-			<div
-				class="flex items-center content-center justify-end mx-2 mb-2 space-x-8"
-			>
-				<Switch bind:checked={layerName} id="layerName">LayerName</Switch>
-
-				<Switch bind:checked={jsx} id="jsx">JSX</Switch>
-			</div>
-		</div>
-		<div class="h-2" />
-
-		{#if textObservable.length > 0}
-			<div
-				class="flex flex-col space-y-2 items-center w-full p-2 mb-2 {sectionStyle}"
-			>
-				<div class="flex flex-wrap w-full">
-					<div class="w-1/2 p-1">
-						<div
-							class="flex items-center justify-center w-full h-full bg-gray-200
-              rounded-lg"
-						>
-							<p class="text-xl font-semibold">Texts</p>
-						</div>
+	<div class="tab">
+		<TabControlItem id="1" payload="Code" active>
+			<div id="imageContainer" />
+			<div>
+				<div class="flex flex-col items-center p-4 bg-gray-50">
+					<div class="flex space-x-4 mt-2">
+						<a href="https://play.tailwindcss.com/" target="_blank">
+							<Button variant="secondary">Tailwind Play</Button>
+						</a>
 					</div>
-					{#each textObservable as item}
-						<div class="w-1/2 p-1">
-							<ItemText {...item} on:clipboard={clipboard(item.full)} />
-						</div>
-					{/each}
 				</div>
 			</div>
-		{/if}
-		<div class="h-2" />
+			<div class="px-2 pt-2 bg-gray-50">
+				{#if emptySelection}
+					<div
+						class="flex flex-col space-y-2 m-auto items-center justify-center p-4 {sectionStyle}"
+					>
+						<p class="text-lg font-bold">Nothing is selected</p>
+						<p class="text-xs">Try selecting a layer, any layer</p>
+					</div>
+				{:else}
+					<div class="w-full pt-2 {sectionStyle}">
+						<div class="flex items-center justify-between px-2 space-x-2">
+							<Button variant="primary" on:click={clipboard(codeObservable)}>
+								Copy
+							</Button>
+						</div>
 
-		<SectionSolid
-			{sectionStyle}
-			type="tailwind"
-			on:clipboard={handleClipboard}
-		/>
+						<Prism language="html" source={codeObservable} />
 
-		<div class="h-2" />
+						<div
+							class="flex items-center content-center justify-end mx-2 mb-2 space-x-8"
+						>
+							<Switch bind:checked={layerName} id="layerName">LayerName</Switch>
 
-		<SectionGradient {sectionStyle} on:clipboard={handleClipboard} />
-	{/if}
-</div>
+							<Switch bind:checked={jsx} id="jsx">JSX</Switch>
+						</div>
+					</div>
+					<div class="h-2" />
+
+					{#if textObservable.length > 0}
+						<div
+							class="flex flex-col space-y-2 items-center w-full p-2 mb-2 {sectionStyle}"
+						>
+							<div class="flex flex-wrap w-full">
+								<div class="w-1/2 p-1">
+									<div
+										class="flex items-center justify-center w-full h-full bg-gray-200
+										rounded-lg"
+									>
+										<p class="text-xl font-semibold">Texts</p>
+									</div>
+								</div>
+								{#each textObservable as item}
+									<div class="w-1/2 p-1">
+										<ItemText {...item} on:clipboard={clipboard(item.full)} />
+									</div>
+								{/each}
+							</div>
+						</div>
+					{/if}
+					<div class="h-2" />
+
+					<SectionSolid
+						{sectionStyle}
+						type="tailwind"
+						on:clipboard={handleClipboard}
+					/>
+
+					<div class="h-2" />
+
+					<SectionGradient {sectionStyle} on:clipboard={handleClipboard} />
+				{/if}
+			</div>
+		</TabControlItem>
+		<TabControlItem id="2" payload="Component">
+			<Button on:click={createInstance}>Create Keypad</Button>
+		</TabControlItem>
+	</div>
+</TabControl>

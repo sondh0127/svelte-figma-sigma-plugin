@@ -43,19 +43,26 @@
 	--font-stack: 'Inter', sans-serif;
 
 	/* Font sizes */
+
+	/* xs */
+	/* sm */
+	/* base */
+	/* lg */
 	--font-size-xsmall: 11px;
 	--font-size-small: 12px;
 	--font-size-large: 13px;
 	--font-size-xlarge: 14px;
+	/* Lineheight */
+	--font-line-height: 16px; /* Use For xsmall, small font sizes */
+	--font-line-height-large: 24px; /* Use For large, xlarge font sizes */
 
+	/* font-normal
+	font-medium	
+	font-semibold	 */
 	/* Font weights */
 	--font-weight-normal: 400;
 	--font-weight-medium: 500;
 	--font-weight-bold: 600;
-
-	/* Lineheight */
-	--font-line-height: 16px; /* Use For xsmall, small font sizes */
-	--font-line-height-large: 24px; /* Use For large, xlarge font sizes */
 
 	/* Letterspacing */
 	--font-letter-spacing-pos-xsmall: 0.005em;

@@ -8,6 +8,7 @@ import typescript from '@rollup/plugin-typescript'
 import css from 'rollup-plugin-css-only'
 import html from 'rollup-plugin-bundle-html-thomzz'
 import svg from 'rollup-plugin-svg'
+import image from '@rollup/plugin-image'
 
 const production = !process.env.ROLLUP_WATCH
 
@@ -74,6 +75,7 @@ export default [
 			// svg(),
 			commonjs(),
 			svg(),
+			image({ dom: true }),
 			typescript({
 				// sourceMap: !production,
 				inlineSources: !production,

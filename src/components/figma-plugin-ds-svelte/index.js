@@ -9,7 +9,7 @@ import Button from './Button.svelte'
 // import Icon from './components/Icon/index.svelte'
 // import IconButton from './components/IconButton/index.svelte'
 // import Input from './components/Input/index.svelte'
-// import Label from './components/Label/index.svelte'
+import Label from './Label.svelte'
 // import OnboardingTip from './components/OnboardingTip/index.svelte'
 // import Radio from './components/Radio/index.svelte'
 // import Section from './components/Section/index.svelte'
@@ -116,7 +116,7 @@ export {
 	// Icon,
 	// IconButton,
 	// Input,
-	// Label,
+	Label,
 	// OnboardingTip,
 	// Radio,
 	// Section,

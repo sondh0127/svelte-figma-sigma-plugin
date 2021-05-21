@@ -3217,6 +3217,7 @@ let parentId;
 let isJsx = false;
 let layerName = false;
 let material = true;
+let assets = {};
 let mode;
 figma.showUI(__html__, { width: 450, height: 550 });
 const run = () => {
@@ -3260,6 +3261,22 @@ const run = () => {
         });
     }
 };
+async function createInstance() {
+    const compName = 'Keypad';
+    const comp = figma.createComponent();
+    comp.name = compName;
+    const rect = figma.createRectangle();
+    // create Image and get hash
+    const imageHash = figma.createImage(assets[compName]).hash;
+    const imagePaint = {
+        type: 'IMAGE',
+        scaleMode: 'FILL',
+        imageHash: imageHash,
+    };
+    rect.fills = [imagePaint];
+    comp.appendChild(rect);
+    console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp);
+}
 figma.on('selectionchange', () => {
     run();
 });
@@ -3268,6 +3285,15 @@ figma.on('selectionchange', () => {
 figma.ui.onmessage = (msg) => {
     if (msg.type === 'tailwind') {
         mode = msg.type;
+        if (msg.assets) {
+            assets = msg.assets;
+            createInstance();
+            // create
+            /* <Component>
+                <RectangleNode fill="Image">
+                </RectangleNode>
+            </Component> */
+        }
         run();
     }
     else if (msg.type === 'jsx' && msg.data !== isJsx) {
@@ -3281,5 +3307,31 @@ figma.ui.onmessage = (msg) => {
     else if (msg.type === 'material' && msg.data !== material) {
         material = msg.data;
         run();
+    }
+    switch (msg.type) {
+        case 'createInstance':
+            console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ msg', msg);
+            console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ figma', figma);
+            console.log('🇻🇳 ~ file: code.ts ~ line 138 ~ assets', assets);
+            createInstance(msg.component);
+            // for (let i = 0; i < msg.count; i++) {
+            // 	var shape
+            // 	if (msg.shape === 'rectangle') {
+            // 		shape = figma.createRectangle()
+            // 	} else if (msg.shape === 'triangle') {
+            // 		shape = figma.createPolygon()
+            // 	} else if (msg.shape === 'line') {
+            // 		shape = figma.createLine()
+            // 	} else {
+            // 		shape = figma.createEllipse()
+            // 	}
+            // 	shape.x = i * 150
+            // 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
+            // 	figma.currentPage.appendChild(shape)
+            // 	nodes.push(shape)
+            // }
+            // figma.currentPage.selection = nodes
+            // figma.viewport.scrollAndZoomIntoView(nodes)
+            break;
     }
 };
