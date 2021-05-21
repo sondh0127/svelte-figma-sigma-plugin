@@ -3221,8 +3221,8 @@ let assets = {};
 let mode;
 figma.showUI(__html__, { width: 450, height: 550 });
 const run = () => {
-    var _a, _b;
     // ignore when nothing was selected
+    var _a, _b;
     if (figma.currentPage.selection.length === 0) {
         figma.ui.postMessage({
             type: 'empty',
@@ -3231,7 +3231,26 @@ const run = () => {
     }
     // check [ignoreStackParent] description
     if (figma.currentPage.selection.length > 0) {
-        parentId = (_b = (_a = figma.currentPage.selection[0].parent) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : '';
+        const selection = figma.currentPage.selection;
+        parentId = (_b = (_a = selection[0].parent) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : '';
+        const isSingleSelection = selection.length === 1;
+        if (isSingleSelection) {
+            switch (selection[0].type) {
+                case 'INSTANCE':
+                    const includeComponent = ['Button'];
+                    const mainComponentName = selection[0].mainComponent.name;
+                    if (includeComponent.includes(mainComponentName)) {
+                        // search google this
+                        const { id, type, reactions } = selection[0];
+                        const node = { id, type, reactions };
+                        figma.ui.postMessage({
+                            type: 'selected',
+                            node,
+                        });
+                    }
+                    break;
+            }
+        }
     }
     let result = '';
     console.log('🇻🇳 ~ file: code.ts ~ line 38 ~ figma.currentPage.selection', figma.currentPage.selection[0]);
@@ -3278,6 +3297,9 @@ async function createInstance() {
     console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp);
 }
 figma.on('selectionchange', () => {
+    figma.ui.postMessage({
+        type: 'selectionchange',
+    });
     run();
 });
 // efficient? No. Works? Yes.
@@ -3287,7 +3309,7 @@ figma.ui.onmessage = (msg) => {
         mode = msg.type;
         if (msg.assets) {
             assets = msg.assets;
-            createInstance();
+            // createInstance()
             // create
             /* <Component>
                 <RectangleNode fill="Image">

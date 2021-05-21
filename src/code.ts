@@ -5,6 +5,8 @@ import {
 } from './common/retrieveUI/retrieveColors'
 import { tailwindMain } from './tailwind/tailwindMain'
 import { convertIntoAltNodes } from './altNodes/altConversion'
+import { clone } from './helper'
+import type { SInstanceNode } from './nodes/types'
 
 let parentId: string
 let isJsx = false
@@ -19,6 +21,7 @@ figma.showUI(__html__, { width: 450, height: 550 })
 
 const run = () => {
 	// ignore when nothing was selected
+
 	if (figma.currentPage.selection.length === 0) {
 		figma.ui.postMessage({
 			type: 'empty',
@@ -28,7 +31,33 @@ const run = () => {
 
 	// check [ignoreStackParent] description
 	if (figma.currentPage.selection.length > 0) {
-		parentId = figma.currentPage.selection[0].parent?.id ?? ''
+		const selection = figma.currentPage.selection
+		parentId = selection[0].parent?.id ?? ''
+
+		const isSingleSelection = selection.length === 1
+
+		if (isSingleSelection) {
+			switch (selection[0].type) {
+				case 'INSTANCE':
+					const includeComponent = ['Button']
+					const mainComponentName = selection[0].mainComponent.name
+
+					if (includeComponent.includes(mainComponentName)) {
+						// search google this
+						const { id, type, reactions } = selection[0]
+
+						const node: SInstanceNode = { id, type, reactions }
+						figma.ui.postMessage({
+							type: 'selected',
+							node,
+						})
+					}
+					break
+
+				default:
+					break
+			}
+		}
 	}
 
 	let result = ''
@@ -95,6 +124,9 @@ async function createInstance() {
 }
 
 figma.on('selectionchange', () => {
+	figma.ui.postMessage({
+		type: 'selectionchange',
+	})
 	run()
 })
 
@@ -105,7 +137,7 @@ figma.ui.onmessage = (msg) => {
 		mode = msg.type
 		if (msg.assets) {
 			assets = msg.assets
-			createInstance()
+			// createInstance()
 			// create
 			/* <Component>
 				<RectangleNode fill="Image">

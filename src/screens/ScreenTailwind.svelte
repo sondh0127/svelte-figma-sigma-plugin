@@ -4,6 +4,7 @@
 	import SectionGradient from './GenericGradientSection.svelte'
 	import SectionSolid from './GenericSolidColorSection.svelte'
 	import imageKeypad from '../assets/Keypad.png'
+	import type { SInstanceNode } from '../nodes/types'
 
 	import Prism from 'svelte-prism'
 	import 'prism-theme-night-owl'
@@ -12,6 +13,8 @@
 	let colorData = []
 	let codeData = ''
 	let emptySelection = false
+
+	let selectionInstance: SInstanceNode | null = null
 
 	$: textObservable = textData
 	$: codeObservable = codeData
@@ -44,8 +47,36 @@
 `
 	}
 
-	onmessage = (event) => {
+	function resetOnSelectionChange() {
+		selectionInstance = null
+	}
+
+	function handleSelected(payload: SInstanceNode) {
+		selectionInstance = payload
+	}
+
+	window.onmessage = async (event) => {
 		console.log('got this from the plugin code', event.data)
+
+		const msg = event.data.pluginMessage
+		const { type, ...payload } = msg
+
+		switch (type) {
+			case 'selectionchange':
+				resetOnSelectionChange()
+				break
+			case 'selected':
+				console.log(
+					'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 58 ~ payload',
+					payload,
+				)
+				handleSelected(payload)
+				break
+
+			default:
+				break
+		}
+
 		if (!event.data.pluginMessage) {
 			return
 		}
@@ -92,24 +123,25 @@
 	import { encode } from '../helper'
 
 	onMount(async () => {
-		const canvas = document.createElement('canvas')
-		const ctx = canvas.getContext('2d')
-		canvas.width = (imageKeypad as HTMLImageElement).width
-		canvas.height = (imageKeypad as HTMLImageElement).height
+		// const canvas = document.createElement('canvas')
+		// const ctx = canvas.getContext('2d')
+		// canvas.width = (imageKeypad as HTMLImageElement).width
+		// canvas.height = (imageKeypad as HTMLImageElement).height
 
-		ctx.drawImage(imageKeypad, 0, 0)
+		// ctx.drawImage(imageKeypad, 0, 0)
 
-		const newBytes = await new Promise((resolve, reject) => {
-			canvas.toBlob((blob) => {
-				const reader = new FileReader()
-				reader.onload = () => resolve(new Uint8Array(reader.result))
-				reader.onerror = () => reject(new Error('Could not read from blob'))
-				reader.readAsArrayBuffer(blob)
-			})
-		})
-		document.getElementById('imageContainer').appendChild(canvas)
+		// const newBytes = await new Promise((resolve, reject) => {
+		// 	canvas.toBlob((blob) => {
+		// 		const reader = new FileReader()
+		// 		reader.onload = () => resolve(new Uint8Array(reader.result))
+		// 		reader.onerror = () => reject(new Error('Could not read from blob'))
+		// 		reader.readAsArrayBuffer(blob)
+		// 	})
+		// })
+		// document.getElementById('imageContainer').appendChild(canvas)
 
-		const assets = { Keypad: newBytes }
+		// const assets = { Keypad: newBytes }
+		const assets = {}
 		parent.postMessage({ pluginMessage: { type: 'tailwind', assets } }, '*')
 	})
 
@@ -213,6 +245,12 @@
 		</TabControlItem>
 		<TabControlItem id="2" payload="Component">
 			<Button on:click={createInstance}>Create Keypad</Button>
+			{#if selectionInstance}
+				<div class="flex">
+					<Label>Interactions</Label>
+					<Button on:click={() => {}}>+</Button>
+				</div>
+			{/if}
 		</TabControlItem>
 	</div>
 </TabControl>
