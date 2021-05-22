@@ -5,7 +5,7 @@ import {
 } from './common/retrieveUI/retrieveColors'
 import { tailwindMain } from './tailwind/tailwindMain'
 import { convertIntoAltNodes } from './altNodes/altConversion'
-import { clone } from './helper'
+import { clone, pick } from './helper'
 import type { SInstanceNode } from './nodes/types'
 
 let parentId: string
@@ -18,6 +18,10 @@ let assets = {}
 let mode: 'tailwind'
 
 figma.showUI(__html__, { width: 450, height: 550 })
+
+if (figma.command == 'addOnClick') {
+	console.log('🇻🇳 ~ file: code.ts ~ line 23 ~ addOnClick')
+}
 
 const run = () => {
 	// ignore when nothing was selected
@@ -45,9 +49,19 @@ const run = () => {
 					if (includeComponent.includes(mainComponentName)) {
 						// search google this
 						// Object.keys() from interface ??????????/
-						const { id, type, reactions, layoutMode } = selection[0]
-
-						const node: SInstanceNode = { id, type, reactions }
+						const { id, type, reactions } = selection[0]
+						const action = selection[0].getPluginData(selection[0].id)
+						if (action) {
+							console.log(
+								'🇻🇳 ~ file: code.ts ~ line 54 ~ action',
+								JSON.parse(action),
+							)
+						}
+						const node: SInstanceNode = {
+							id,
+							type,
+							reactions: clone(reactions),
+						}
 						figma.ui.postMessage({
 							type: 'selected',
 							node,
@@ -134,6 +148,7 @@ figma.on('selectionchange', () => {
 // efficient? No. Works? Yes.
 // todo pass data instead of relying in types
 figma.ui.onmessage = (msg) => {
+	const { type, ...payload } = msg
 	if (msg.type === 'tailwind') {
 		mode = msg.type
 		if (msg.assets) {
@@ -159,11 +174,9 @@ figma.ui.onmessage = (msg) => {
 
 	switch (msg.type) {
 		case 'createInstance':
-			console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ msg', msg)
-			console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ figma', figma)
 			const nodes: SceneNode[] = []
 			console.log('🇻🇳 ~ file: code.ts ~ line 138 ~ assets', assets)
-			createInstance(msg.component)
+			createInstance()
 			// for (let i = 0; i < msg.count; i++) {
 			// 	var shape
 
@@ -186,7 +199,28 @@ figma.ui.onmessage = (msg) => {
 			// figma.currentPage.selection = nodes
 			// figma.viewport.scrollAndZoomIntoView(nodes)
 			break
+		case 'create-reaction': {
+			const sNode: SInstanceNode = payload.node
+			const node = figma.getNodeById(sNode.id)
 
+			node.setPluginData(
+				node.id,
+				JSON.stringify({
+					trigger: { type: 'ON_CLICK' },
+					action: { type: 'URL', url: 'handle' },
+				}),
+			)
+
+			console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node)
+
+			node.setRelaunchData({
+				// edit: 'Edit this trapezoid with Shaper',
+				// open: 'Open this trapezoid with Shaper',
+				addOnClick: 'Add sigma interactions',
+			})
+
+			break
+		}
 		default:
 			break
 	}

@@ -53,3 +53,8 @@ export async function decode(canvas, ctx, bytes) {
 	const imageData = ctx.getImageData(0, 0, image.width, image.height)
 	return imageData
 }
+
+export const pick = <T>(obj: T, keys: Array<keyof T | string>) =>
+	Object.keys(obj)
+		.filter((k) => keys.includes(k))
+		.reduce((res, k) => Object.assign(res, { [k]: obj[k] }), {} as Partial<T>)

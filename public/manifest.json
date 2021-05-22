@@ -3,5 +3,13 @@
 	"id": "795096273369409537",
 	"api": "1.0.0",
 	"main": "code.js",
-	"ui": "build/index.html"
+	"ui": "build/index.html",
+	"relaunchButtons": [
+		{ "command": "edit", "name": "Edit shape" },
+		{ "command": "open", "name": "Open Shaper", "multipleSelection": true },
+		{
+			"command": "addOnClick",
+			"name": "Add action"
+		}
+	]
 }

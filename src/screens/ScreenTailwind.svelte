@@ -14,7 +14,7 @@
 	let codeData = ''
 	let emptySelection = false
 
-	let selectionInstance: SInstanceNode | null = null
+	let sInstanceNode: SInstanceNode | null = null
 
 	$: textObservable = textData
 	$: codeObservable = codeData
@@ -48,11 +48,7 @@
 	}
 
 	function resetOnSelectionChange() {
-		selectionInstance = null
-	}
-
-	function handleSelected(payload: SInstanceNode) {
-		selectionInstance = payload
+		sInstanceNode = null
 	}
 
 	window.onmessage = async (event) => {
@@ -70,7 +66,7 @@
 					'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 58 ~ payload',
 					payload,
 				)
-				handleSelected(payload)
+				sInstanceNode = payload.node
 				break
 
 			default:
@@ -142,21 +138,21 @@
 
 		// const assets = { Keypad: newBytes }
 		const assets = {}
-		parent.postMessage({ pluginMessage: { type: 'tailwind', assets } }, '*')
+
+		postMessage({ type: 'tailwind', assets })
 	})
 
 	const sectionStyle = 'border rounded-lg bg-white'
 
+	function postMessage(msg: any) {
+		parent.postMessage({ pluginMessage: msg }, '*')
+	}
+
 	function createInstance() {
-		parent.postMessage(
-			{
-				pluginMessage: {
-					type: 'createInstance',
-					component: 'Keypad',
-				},
-			},
-			'*',
-		)
+		postMessage({
+			type: 'createInstance',
+			component: 'Keypad',
+		})
 	}
 </script>
 
@@ -245,10 +241,28 @@
 		</TabControlItem>
 		<TabControlItem id="2" payload="Component">
 			<Button on:click={createInstance}>Create Keypad</Button>
-			{#if selectionInstance}
-				<div class="flex">
-					<Label>Interactions</Label>
-					<Button on:click={() => {}}>+</Button>
+			{#if sInstanceNode}
+				<div class="flex flex-col">
+					<div class="flex">
+						<Label>Interactions</Label>
+						<Button
+							on:click={() => {
+								postMessage({
+									type: 'create-reaction',
+									node: sInstanceNode,
+								})
+							}}>+</Button
+						>
+					</div>
+
+					{#if sInstanceNode.reactions.length > 0}
+						{#each sInstanceNode.reactions as reaction}
+							<div class="flex">
+								<span>{reaction.trigger.type}</span>
+								<span>{reaction.action.type}</span>
+							</div>
+						{/each}
+					{/if}
 				</div>
 			{/if}
 		</TabControlItem>

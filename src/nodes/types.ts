@@ -106,38 +106,38 @@ export interface PluginAPI {
 
 	combineAsVariants(
 		nodes: ReadonlyArray<ComponentNode>,
-		parent: BaseNode & ChildrenMixin,
+		parent: BaseNode & SChildrenMixin,
 		index?: number,
 	): ComponentSetNode
 	group(
 		nodes: ReadonlyArray<BaseNode>,
-		parent: BaseNode & ChildrenMixin,
+		parent: BaseNode & SChildrenMixin,
 		index?: number,
 	): GroupNode
 	flatten(
 		nodes: ReadonlyArray<BaseNode>,
-		parent?: BaseNode & ChildrenMixin,
+		parent?: BaseNode & SChildrenMixin,
 		index?: number,
 	): VectorNode
 
 	union(
 		nodes: ReadonlyArray<BaseNode>,
-		parent: BaseNode & ChildrenMixin,
+		parent: BaseNode & SChildrenMixin,
 		index?: number,
 	): BooleanOperationNode
 	subtract(
 		nodes: ReadonlyArray<BaseNode>,
-		parent: BaseNode & ChildrenMixin,
+		parent: BaseNode & SChildrenMixin,
 		index?: number,
 	): BooleanOperationNode
 	intersect(
 		nodes: ReadonlyArray<BaseNode>,
-		parent: BaseNode & ChildrenMixin,
+		parent: BaseNode & SChildrenMixin,
 		index?: number,
 	): BooleanOperationNode
 	exclude(
 		nodes: ReadonlyArray<BaseNode>,
-		parent: BaseNode & ChildrenMixin,
+		parent: BaseNode & SChildrenMixin,
 		index?: number,
 	): BooleanOperationNode
 }
@@ -451,21 +451,21 @@ interface Font {
 	fontName: FontName
 }
 
-type Reaction = { action: Action; trigger: Trigger }
+type SReaction = { action: SAction; trigger: STrigger }
 
-type Action =
-	| { readonly type: 'BACK' | 'CLOSE' }
-	| { readonly type: 'URL'; url: string }
+type SAction =
+	| { type: 'BACK' | 'CLOSE' }
+	| { type: 'URL'; url: string }
 	| {
-			readonly type: 'NODE'
-			readonly destinationId: string | null
-			readonly navigation: Navigation
-			readonly transition: Transition | null
-			readonly preserveScrollPosition: boolean
+			type: 'NODE'
+			destinationId: string | null
+			navigation: Navigation
+			transition: Transition | null
+			preserveScrollPosition: boolean
 
 			// Only present if navigation == "OVERLAY" and the destination uses
 			// overlay position type "RELATIVE"
-			readonly overlayRelativePosition?: Vector
+			overlayRelativePosition?: Vector
 	  }
 
 interface SimpleTransition {
@@ -485,12 +485,12 @@ interface DirectionalTransition {
 
 type Transition = SimpleTransition | DirectionalTransition
 
-type Trigger =
-	| { readonly type: 'ON_CLICK' | 'ON_HOVER' | 'ON_PRESS' | 'ON_DRAG' }
-	| { readonly type: 'AFTER_TIMEOUT'; readonly timeout: number }
+type STrigger =
+	| { type: 'ON_CLICK' | 'ON_HOVER' | 'ON_PRESS' | 'ON_DRAG' }
+	| { type: 'AFTER_TIMEOUT'; timeout: number }
 	| {
-			readonly type: 'MOUSE_ENTER' | 'MOUSE_LEAVE' | 'MOUSE_UP' | 'MOUSE_DOWN'
-			readonly delay: number
+			type: 'MOUSE_ENTER' | 'MOUSE_LEAVE' | 'MOUSE_UP' | 'MOUSE_DOWN'
+			delay: number
 	  }
 
 type Navigation = 'NAVIGATE' | 'SWAP' | 'OVERLAY' | 'SCROLL_TO' | 'CHANGE_TO'
@@ -548,68 +548,64 @@ interface SBaseNodeMixin {
 	// setRelaunchData(data: { [command: string]: /* description */ string }): void
 }
 
-interface SceneNodeMixin {
-	visible: boolean
-	locked: boolean
+interface SSceneNodeMixin {
+	// visible: boolean
+	// locked: boolean
 }
 
-interface ChildrenMixin {
-	readonly children: ReadonlyArray<SceneNode>
-
-	appendChild(child: SceneNode): void
-	insertChild(index: number, child: SceneNode): void
-
-	findChildren(callback?: (node: SceneNode) => boolean): SceneNode[]
-	findChild(callback: (node: SceneNode) => boolean): SceneNode | null
-
-	/**
-	 * If you only need to search immediate children, it is much faster
-	 * to call node.children.filter(callback) or node.findChildren(callback)
-	 */
-	findAll(callback?: (node: SceneNode) => boolean): SceneNode[]
-
-	/**
-	 * If you only need to search immediate children, it is much faster
-	 * to call node.children.find(callback) or node.findChild(callback)
-	 */
-	findOne(callback: (node: SceneNode) => boolean): SceneNode | null
+interface SChildrenMixin {
+	// readonly children: ReadonlyArray<SceneNode>
+	// appendChild(child: SceneNode): void
+	// insertChild(index: number, child: SceneNode): void
+	// findChildren(callback?: (node: SceneNode) => boolean): SceneNode[]
+	// findChild(callback: (node: SceneNode) => boolean): SceneNode | null
+	// /**
+	//  * If you only need to search immediate children, it is much faster
+	//  * to call node.children.filter(callback) or node.findChildren(callback)
+	//  */
+	// findAll(callback?: (node: SceneNode) => boolean): SceneNode[]
+	// /**
+	//  * If you only need to search immediate children, it is much faster
+	//  * to call node.children.find(callback) or node.findChild(callback)
+	//  */
+	// findOne(callback: (node: SceneNode) => boolean): SceneNode | null
 }
 
-interface ConstraintMixin {
-	constraints: Constraints
+interface SConstraintMixin {
+	// constraints: Constraints
 }
 
-interface LayoutMixin {
-	readonly absoluteTransform: Transform
-	relativeTransform: Transform
-	x: number
-	y: number
-	rotation: number // In degrees
+interface SLayoutMixin {
+	/* // readonly absoluteTransform: Transform
+	// relativeTransform: Transform
+	// x: number
+	// y: number
+	// rotation: number // In degrees
 
-	readonly width: number
-	readonly height: number
-	constrainProportions: boolean
+	// readonly width: number
+	// readonly height: number
+	// constrainProportions: boolean
 
-	layoutAlign: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'INHERIT' // applicable only inside auto-layout frames
-	layoutGrow: number
+	// layoutAlign: 'MIN' | 'CENTER' | 'MAX' | 'STRETCH' | 'INHERIT' // applicable only inside auto-layout frames
+	// layoutGrow: number
 
-	resize(width: number, height: number): void
-	resizeWithoutConstraints(width: number, height: number): void
-	rescale(scale: number): void
+	// resize(width: number, height: number): void
+	// resizeWithoutConstraints(width: number, height: number): void
+	// rescale(scale: number): void */
 }
 
-interface BlendMixin {
-	opacity: number
-	blendMode: 'PASS_THROUGH' | BlendMode
-	isMask: boolean
-	effects: ReadonlyArray<Effect>
-	effectStyleId: string
+interface SBlendMixin {
+	// opacity: number
+	// blendMode: 'PASS_THROUGH' | BlendMode
+	// isMask: boolean
+	// effects: ReadonlyArray<Effect>
+	// effectStyleId: string
 }
 
-interface ContainerMixin {
-	expanded: boolean
-	backgrounds: ReadonlyArray<Paint> // DEPRECATED: use 'fills' instead
-	backgroundStyleId: string // DEPRECATED: use 'fillStyleId' instead
+interface SContainerMixin {
+	// expanded: boolean
+	// backgrounds: ReadonlyArray<Paint> // DEPRECATED: use 'fills' instead
+	// backgroundStyleId: string // DEPRECATED: use 'fillStyleId' instead
 }
 
 type StrokeCap =
@@ -621,48 +617,48 @@ type StrokeCap =
 type StrokeJoin = 'MITER' | 'BEVEL' | 'ROUND'
 type HandleMirroring = 'NONE' | 'ANGLE' | 'ANGLE_AND_LENGTH'
 
-interface GeometryMixin {
-	fills: ReadonlyArray<Paint> | PluginAPI['mixed']
-	strokes: ReadonlyArray<Paint>
-	strokeWeight: number
-	strokeMiterLimit: number
-	strokeAlign: 'CENTER' | 'INSIDE' | 'OUTSIDE'
-	strokeCap: StrokeCap | PluginAPI['mixed']
-	strokeJoin: StrokeJoin | PluginAPI['mixed']
-	dashPattern: ReadonlyArray<number>
-	fillStyleId: string | PluginAPI['mixed']
-	strokeStyleId: string
-	outlineStroke(): VectorNode | null
+interface SGeometryMixin {
+	// fills: ReadonlyArray<Paint> | PluginAPI['mixed']
+	// strokes: ReadonlyArray<Paint>
+	// strokeWeight: number
+	// strokeMiterLimit: number
+	// strokeAlign: 'CENTER' | 'INSIDE' | 'OUTSIDE'
+	// strokeCap: StrokeCap | PluginAPI['mixed']
+	// strokeJoin: StrokeJoin | PluginAPI['mixed']
+	// dashPattern: ReadonlyArray<number>
+	// fillStyleId: string | PluginAPI['mixed']
+	// strokeStyleId: string
+	// outlineStroke(): VectorNode | null
 }
 
-interface CornerMixin {
-	cornerRadius: number | PluginAPI['mixed']
-	cornerSmoothing: number
+interface SCornerMixin {
+	// cornerRadius: number | PluginAPI['mixed']
+	// cornerSmoothing: number
 }
 
-interface RectangleCornerMixin {
-	topLeftRadius: number
-	topRightRadius: number
-	bottomLeftRadius: number
-	bottomRightRadius: number
+interface SRectangleCornerMixin {
+	// topLeftRadius: number
+	// topRightRadius: number
+	// bottomLeftRadius: number
+	// bottomRightRadius: number
 }
 
-interface ExportMixin {
-	exportSettings: ReadonlyArray<ExportSettings>
-	exportAsync(settings?: ExportSettings): Promise<Uint8Array> // Defaults to PNG format
+interface SExportMixin {
+	/* exportSettings: ReadonlyArray<ExportSettings>
+	exportAsync(settings?: ExportSettings): Promise<Uint8Array> // Defaults to PNG format */
 }
 
-interface FramePrototypingMixin {
-	overflowDirection: OverflowDirection
+interface SFramePrototypingMixin {
+	/* 	overflowDirection: OverflowDirection
 	numberOfFixedChildren: number
 
 	readonly overlayPositionType: OverlayPositionType
 	readonly overlayBackground: OverlayBackground
-	readonly overlayBackgroundInteraction: OverlayBackgroundInteraction
+	readonly overlayBackgroundInteraction: OverlayBackgroundInteraction */
 }
 
-interface ReactionMixin {
-	readonly reactions: ReadonlyArray<Reaction>
+interface SReactionMixin {
+	reactions: Array<SReaction>
 }
 
 interface DocumentationLink {
@@ -679,26 +675,26 @@ interface PublishableMixin {
 
 interface DefaultShapeMixin
 	extends SBaseNodeMixin,
-		SceneNodeMixin,
-		ReactionMixin,
-		BlendMixin,
-		GeometryMixin,
-		LayoutMixin,
-		ExportMixin {}
+		SSceneNodeMixin,
+		SReactionMixin,
+		SBlendMixin,
+		SGeometryMixin,
+		SLayoutMixin,
+		SExportMixin {}
 
 interface SBaseFrameMixin
 	extends SBaseNodeMixin,
-		SceneNodeMixin,
-		ChildrenMixin,
-		ContainerMixin,
-		GeometryMixin,
-		CornerMixin,
-		RectangleCornerMixin,
-		BlendMixin,
-		ConstraintMixin,
-		LayoutMixin,
-		ExportMixin {
-	layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL'
+		SSceneNodeMixin,
+		SChildrenMixin,
+		SContainerMixin,
+		SGeometryMixin,
+		SCornerMixin,
+		SRectangleCornerMixin,
+		SBlendMixin,
+		SConstraintMixin,
+		SLayoutMixin,
+		SExportMixin {
+	/* layoutMode: 'NONE' | 'HORIZONTAL' | 'VERTICAL'
 	primaryAxisSizingMode: 'FIXED' | 'AUTO' // applicable only if layoutMode != "NONE"
 	counterAxisSizingMode: 'FIXED' | 'AUTO' // applicable only if layoutMode != "NONE"
 
@@ -717,13 +713,13 @@ interface SBaseFrameMixin
 	layoutGrids: ReadonlyArray<LayoutGrid>
 	gridStyleId: string
 	clipsContent: boolean
-	guides: ReadonlyArray<Guide>
+	guides: ReadonlyArray<Guide> */
 }
 
 interface SDefaultFrameMixin
 	extends SBaseFrameMixin,
-		FramePrototypingMixin,
-		ReactionMixin {}
+		SFramePrototypingMixin,
+		SReactionMixin {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Nodes
@@ -755,7 +751,7 @@ interface DocumentNode extends SBaseNodeMixin {
 	): PageNode | SceneNode | null
 }
 
-interface PageNode extends SBaseNodeMixin, ChildrenMixin, ExportMixin {
+interface PageNode extends SBaseNodeMixin, SChildrenMixin, SExportMixin {
 	readonly type: 'PAGE'
 	clone(): PageNode
 
@@ -780,60 +776,66 @@ interface FrameNode extends SDefaultFrameMixin {
 
 interface GroupNode
 	extends SBaseNodeMixin,
-		SceneNodeMixin,
-		ReactionMixin,
-		ChildrenMixin,
-		ContainerMixin,
-		BlendMixin,
-		LayoutMixin,
-		ExportMixin {
+		SSceneNodeMixin,
+		SReactionMixin,
+		SChildrenMixin,
+		SContainerMixin,
+		SBlendMixin,
+		SLayoutMixin,
+		SExportMixin {
 	readonly type: 'GROUP'
 	clone(): GroupNode
 }
 
 interface SliceNode
 	extends SBaseNodeMixin,
-		SceneNodeMixin,
-		LayoutMixin,
-		ExportMixin {
+		SSceneNodeMixin,
+		SLayoutMixin,
+		SExportMixin {
 	readonly type: 'SLICE'
 	clone(): SliceNode
 }
 
 interface RectangleNode
 	extends DefaultShapeMixin,
-		ConstraintMixin,
-		CornerMixin,
-		RectangleCornerMixin {
+		SConstraintMixin,
+		SCornerMixin,
+		SRectangleCornerMixin {
 	readonly type: 'RECTANGLE'
 	clone(): RectangleNode
 }
 
-interface LineNode extends DefaultShapeMixin, ConstraintMixin {
+interface LineNode extends DefaultShapeMixin, SConstraintMixin {
 	readonly type: 'LINE'
 	clone(): LineNode
 }
 
-interface EllipseNode extends DefaultShapeMixin, ConstraintMixin, CornerMixin {
+interface EllipseNode
+	extends DefaultShapeMixin,
+		SConstraintMixin,
+		SCornerMixin {
 	readonly type: 'ELLIPSE'
 	clone(): EllipseNode
 	arcData: ArcData
 }
 
-interface PolygonNode extends DefaultShapeMixin, ConstraintMixin, CornerMixin {
+interface PolygonNode
+	extends DefaultShapeMixin,
+		SConstraintMixin,
+		SCornerMixin {
 	readonly type: 'POLYGON'
 	clone(): PolygonNode
 	pointCount: number
 }
 
-interface StarNode extends DefaultShapeMixin, ConstraintMixin, CornerMixin {
+interface StarNode extends DefaultShapeMixin, SConstraintMixin, SCornerMixin {
 	readonly type: 'STAR'
 	clone(): StarNode
 	pointCount: number
 	innerRadius: number
 }
 
-interface VectorNode extends DefaultShapeMixin, ConstraintMixin, CornerMixin {
+interface VectorNode extends DefaultShapeMixin, SConstraintMixin, SCornerMixin {
 	readonly type: 'VECTOR'
 	clone(): VectorNode
 	vectorNetwork: VectorNetwork
@@ -841,7 +843,7 @@ interface VectorNode extends DefaultShapeMixin, ConstraintMixin, CornerMixin {
 	handleMirroring: HandleMirroring | PluginAPI['mixed']
 }
 
-interface TextNode extends DefaultShapeMixin, ConstraintMixin {
+interface TextNode extends DefaultShapeMixin, SConstraintMixin {
 	readonly type: 'TEXT'
 	clone(): TextNode
 	readonly hasMissingFont: boolean
@@ -924,8 +926,8 @@ export interface SInstanceNode extends SDefaultFrameMixin {
 
 interface BooleanOperationNode
 	extends DefaultShapeMixin,
-		ChildrenMixin,
-		CornerMixin {
+		SChildrenMixin,
+		SCornerMixin {
 	readonly type: 'BOOLEAN_OPERATION'
 	clone(): BooleanOperationNode
 	booleanOperation: 'UNION' | 'INTERSECT' | 'SUBTRACT' | 'EXCLUDE'

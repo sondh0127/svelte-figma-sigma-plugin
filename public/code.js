@@ -1,5 +1,32 @@
 'use strict';
 
+/*! *****************************************************************************
+Copyright (c) Microsoft Corporation.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+***************************************************************************** */
+
+function __rest(s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+}
+
 const nearestValue = (goal, array) => {
     return array.reduce(function (prev, curr) {
         return Math.abs(curr - goal) < Math.abs(prev - goal) ? curr : prev;
@@ -3213,6 +3240,35 @@ const rowColumnProps = (node) => {
     return `${flex}${rowOrColumn}${space}${counterAlign}${primaryAlign}`;
 };
 
+function clone(val) {
+    const type = typeof val;
+    if (val === null) {
+        return null;
+    }
+    else if (type === 'undefined' ||
+        type === 'number' ||
+        type === 'string' ||
+        type === 'boolean') {
+        return val;
+    }
+    else if (type === 'object') {
+        if (val instanceof Array) {
+            return val.map((x) => clone(x));
+        }
+        else if (val instanceof Uint8Array) {
+            return new Uint8Array(val);
+        }
+        else {
+            let o = {};
+            for (const key in val) {
+                o[key] = clone(val[key]);
+            }
+            return o;
+        }
+    }
+    throw 'unknown';
+}
+
 let parentId;
 let isJsx = false;
 let layerName = false;
@@ -3220,6 +3276,9 @@ let material = true;
 let assets = {};
 let mode;
 figma.showUI(__html__, { width: 450, height: 550 });
+if (figma.command == 'addOnClick') {
+    console.log('🇻🇳 ~ file: code.ts ~ line 23 ~ addOnClick');
+}
 const run = () => {
     // ignore when nothing was selected
     var _a, _b;
@@ -3241,8 +3300,17 @@ const run = () => {
                     const mainComponentName = selection[0].mainComponent.name;
                     if (includeComponent.includes(mainComponentName)) {
                         // search google this
+                        // Object.keys() from interface ??????????/
                         const { id, type, reactions } = selection[0];
-                        const node = { id, type, reactions };
+                        const action = selection[0].getPluginData(selection[0].id);
+                        if (action) {
+                            console.log('🇻🇳 ~ file: code.ts ~ line 54 ~ action', JSON.parse(action));
+                        }
+                        const node = {
+                            id,
+                            type,
+                            reactions: clone(reactions),
+                        };
                         figma.ui.postMessage({
                             type: 'selected',
                             node,
@@ -3305,6 +3373,7 @@ figma.on('selectionchange', () => {
 // efficient? No. Works? Yes.
 // todo pass data instead of relying in types
 figma.ui.onmessage = (msg) => {
+    const payload = __rest(msg, ["type"]);
     if (msg.type === 'tailwind') {
         mode = msg.type;
         if (msg.assets) {
@@ -3332,10 +3401,8 @@ figma.ui.onmessage = (msg) => {
     }
     switch (msg.type) {
         case 'createInstance':
-            console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ msg', msg);
-            console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ figma', figma);
             console.log('🇻🇳 ~ file: code.ts ~ line 138 ~ assets', assets);
-            createInstance(msg.component);
+            createInstance();
             // for (let i = 0; i < msg.count; i++) {
             // 	var shape
             // 	if (msg.shape === 'rectangle') {
@@ -3355,5 +3422,20 @@ figma.ui.onmessage = (msg) => {
             // figma.currentPage.selection = nodes
             // figma.viewport.scrollAndZoomIntoView(nodes)
             break;
+        case 'create-reaction': {
+            const sNode = payload.node;
+            const node = figma.getNodeById(sNode.id);
+            node.setPluginData(node.id, JSON.stringify({
+                trigger: { type: 'ON_CLICK' },
+                action: { type: 'URL', url: 'handle' },
+            }));
+            console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node);
+            node.setRelaunchData({
+                // edit: 'Edit this trapezoid with Shaper',
+                // open: 'Open this trapezoid with Shaper',
+                addOnClick: 'Add sigma interactions',
+            });
+            break;
+        }
     }
 };
