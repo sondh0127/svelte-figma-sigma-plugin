@@ -1949,16 +1949,6 @@ class AltTextNode {
         this.type = 'TEXT';
     }
 }
-class AltComponentNode {
-    constructor() {
-        this.type = 'COMPONENT';
-    }
-}
-class AltInstanceNode {
-    constructor() {
-        this.type = 'INSTANCE';
-    }
-}
 // // DOCUMENT
 // class AltDocumentNode {
 //   type = "DOCUMENT";
@@ -2406,6 +2396,218 @@ const retrieveCollidingItems = (children) => {
     return groups;
 };
 
+/**
+ * Extracts the specified list of `attributes` from the given `array` of
+ * plain objects.
+ *
+ * @returns Returns an array of plain objects.
+ * @category Object
+ */
+function pick(object, keys) {
+    const result = {};
+    for (const key of keys) {
+        const value = object[key];
+        if (typeof value === 'undefined') {
+            throw new Error(`Key \`${key}\` does not exist on \`object\``);
+        }
+        result[key] = value;
+    }
+    return result;
+}
+
+/**
+ * Returns the `x` and `y` position of the given `node` relative to the page.
+ *
+ * @category Node
+ */
+function getAbsolutePosition(node) {
+    return {
+        x: node.absoluteTransform[0][2],
+        y: node.absoluteTransform[1][2]
+    };
+}
+
+/**
+ * Returns the parent node of the given `node`.
+ *
+ * @category Node
+ */
+function getParentNode(node) {
+    const parentNode = node.parent;
+    if (parentNode === null) {
+        throw new Error(`\`node.parent\` is \`null\``);
+    }
+    return parentNode;
+}
+
+/**
+ * Computes the coordinates (`x`, `y`) and dimensions (`width`, `height`) of
+ * the smallest bounding box that contains the given `node`.
+ *
+ * @category Node
+ */
+function computeBoundingBox(node) {
+    if (node.rotation === 0) {
+        const absolutePosition = getAbsolutePosition(node);
+        const { width, height } = node;
+        return Object.assign(Object.assign({}, absolutePosition), { height, width });
+    }
+    const parentNode = getParentNode(node);
+    const index = parentNode.children.indexOf(node);
+    const group = figma.group([node], parentNode, index);
+    const absolutePosition = getAbsolutePosition(group);
+    const { width, height } = group;
+    parentNode.insertChild(index, node);
+    return Object.assign(Object.assign({}, absolutePosition), { height, width });
+}
+
+/**
+ * Creates a deep copy of the given object.
+ *
+ * @category Object
+ */
+function cloneObject(object) {
+    if (object === null ||
+        typeof object === 'undefined' ||
+        typeof object === 'boolean' ||
+        typeof object === 'number' ||
+        typeof object === 'string') {
+        return object;
+    }
+    if (Array.isArray(object)) {
+        const result = [];
+        for (const value of object) {
+            result.push(cloneObject(value));
+        }
+        return result;
+    }
+    const result = {};
+    for (const key in object) {
+        result[key] = cloneObject(object[key]);
+    }
+    return result;
+}
+
+const convertSLayout = (node) => {
+    // Get the correct X/Y position when rotation is applied.
+    // This won't guarantee a perfect position, since we would still
+    // need to calculate the offset based on node width/height to compensate,
+    // which we are not currently doing. However, this is a lot better than nothing and will help LineNode.
+    const sLayoutNode = Object.assign({}, pick(node, [
+        'absoluteTransform',
+        'relativeTransform',
+        'x',
+        'y',
+        'rotation',
+        'width',
+        'height',
+        'constrainProportions',
+        'layoutAlign',
+        'layoutGrow',
+    ]));
+    if (node.rotation !== undefined && Math.round(node.rotation) !== 0) {
+        const boundingRect = getBoundingRect(node);
+        console.log('🇻🇳 ~ file: sConversion.ts ~ line 35 ~ boundingRect', boundingRect);
+        // TODO: place getBoundingRect with  computeBoundingBox
+        const boundingRect2 = computeBoundingBox(node);
+        console.log('🇻🇳 ~ file: sConversion.ts ~ line 35 ~ boundingRect2', boundingRect2);
+        sLayoutNode.x = boundingRect.x;
+        sLayoutNode.y = boundingRect.y;
+    }
+    return sLayoutNode;
+};
+const convertSGeometry = (node) => {
+    const fills = cloneObject(node.fills);
+    const strokes = cloneObject(node.strokes);
+    const strokeCap = cloneObject(node.strokeCap);
+    const strokeJoin = cloneObject(node.strokeJoin);
+    const dashPattern = cloneObject(node.dashPattern);
+    const fillStyleId = cloneObject(node.fillStyleId);
+    return Object.assign(Object.assign({}, pick(node, [
+        'strokeWeight',
+        'strokeMiterLimit',
+        'strokeAlign',
+        'strokeStyleId',
+    ])), { fills,
+        strokes,
+        strokeCap,
+        strokeJoin,
+        dashPattern,
+        fillStyleId });
+};
+const convertSBlend = (node) => {
+    return Object.assign({}, pick(node, [
+        'opacity',
+        'blendMode',
+        'isMask',
+        'effects',
+        'effectStyleId',
+    ]));
+};
+const convertSContainer = (node) => {
+    return Object.assign({}, pick(node, ['expanded']));
+};
+const convertSCorner = (node) => {
+    const cornerRadius = cloneObject(node.cornerRadius);
+    const cornerSmoothing = cloneObject(node.cornerSmoothing);
+    return {
+        cornerRadius,
+        cornerSmoothing,
+    };
+};
+const convertSRectangleCorner = (node) => {
+    return Object.assign({}, pick(node, [
+        'topLeftRadius',
+        'topRightRadius',
+        'bottomLeftRadius',
+        'bottomRightRadius',
+    ]));
+};
+const convertSConstraint = (node) => {
+    return Object.assign({}, pick(node, ['constraints']));
+};
+const convertSBaseNode = (node) => {
+    return Object.assign(Object.assign({}, pick(node, ['id', 'name'])), { parent: null });
+};
+const convertSBaseFrame = (node) => {
+    const layoutGrids = cloneObject(node.layoutGrids);
+    const guides = cloneObject(node.guides);
+    const baseFrameNode = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, convertSScene(node)), convertSBaseNode(node)), { children: [] }), convertSContainer(node)), convertSGeometry(node)), convertSRectangleCorner(node)), convertSCorner(node)), convertSBlend(node)), convertSConstraint(node)), convertSLayout(node)), pick(node, [
+        'layoutMode',
+        'primaryAxisSizingMode',
+        'counterAxisSizingMode',
+        'primaryAxisAlignItems',
+        'counterAxisAlignItems',
+        'paddingLeft',
+        'paddingRight',
+        'paddingTop',
+        'paddingBottom',
+        'itemSpacing',
+        'gridStyleId',
+        'clipsContent',
+    ])), { layoutGrids,
+        guides });
+    // Fix this: https://stackoverflow.com/questions/57859754/flexbox-space-between-but-center-if-one-element
+    // It affects HTML, Tailwind, Flutter and possibly SwiftUI. So, let's be consistent.
+    if (node.primaryAxisAlignItems === 'SPACE_BETWEEN' &&
+        node.children.length === 1) {
+        baseFrameNode.primaryAxisAlignItems = 'CENTER';
+    }
+    return baseFrameNode;
+};
+const convertSScene = (node) => {
+    return Object.assign({}, pick(node, ['locked', 'visible']));
+};
+// Nodes Conversion
+const convertIntoSComponent = (node) => {
+    const interactions = [];
+    return Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, ['type', 'remote', 'key'])), { interactions });
+};
+const convertIntoSInstance = (node) => {
+    const interactions = JSON.parse(node.getPluginData(node.id))['interactions'] || [];
+    return convertToAutoLayout(Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, ['type'])), { interactions, mainComponent: convertIntoSComponent(node.mainComponent) }));
+};
+
 const frameNodeToAlt = (node, altParent = null) => {
     if (node.children.length === 0) {
         // if it has no children, convert frame to rectangle
@@ -2421,7 +2623,7 @@ const frameNodeToAlt = (node, altParent = null) => {
     convertFrame(altNode, node);
     convertCorner(altNode, node);
     convertRectangleCorner(altNode, node);
-    altNode.children = convertIntoAltNodes(node.children, altNode);
+    altNode.children = convertIntoSNodes(node.children, altNode);
     return convertToAutoLayout(convertNodesOnRectangle(altNode));
 };
 // auto convert Frame to Rectangle when Frame has no Children
@@ -2437,7 +2639,7 @@ const frameToRectangleNode = (node, altParent) => {
     convertCorner(newNode, node);
     return newNode;
 };
-const convertIntoAltNodes = (sceneNode, altParent = null) => {
+const convertIntoSNodes = (sceneNode, sParent = null) => {
     const mapped = sceneNode.map((node) => {
         if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
             let altNode;
@@ -2450,8 +2652,8 @@ const convertIntoAltNodes = (sceneNode, altParent = null) => {
             }
             altNode.id = node.id;
             altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
+            if (sParent) {
+                altNode.parent = sParent;
             }
             convertDefaultShape(altNode, node);
             convertCorner(altNode, node);
@@ -2461,8 +2663,8 @@ const convertIntoAltNodes = (sceneNode, altParent = null) => {
             const altNode = new AltRectangleNode();
             altNode.id = node.id;
             altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
+            if (sParent) {
+                altNode.parent = sParent;
             }
             convertDefaultShape(altNode, node);
             // Lines have a height of zero, but they must have a height, so add 1.
@@ -2474,31 +2676,31 @@ const convertIntoAltNodes = (sceneNode, altParent = null) => {
             return altNode;
         }
         else if (node.type === 'FRAME') {
-            const iconToRect = iconToRectangle(node, altParent);
+            const iconToRect = iconToRectangle(node, sParent);
             if (iconToRect != null) {
                 return iconToRect;
             }
-            return frameNodeToAlt(node, altParent);
+            return frameNodeToAlt(node, sParent);
         }
         else if (node.type === 'GROUP') {
             if (node.children.length === 1 && node.visible !== false) {
                 // if Group is visible and has only one child, Group should disappear.
                 // there will be a single value anyway.
-                return convertIntoAltNodes(node.children, altParent)[0];
+                return convertIntoSNodes(node.children, sParent)[0];
             }
-            const iconToRect = iconToRectangle(node, altParent);
+            const iconToRect = iconToRectangle(node, sParent);
             if (iconToRect != null) {
                 return iconToRect;
             }
             const altNode = new AltGroupNode();
             altNode.id = node.id;
             altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
+            if (sParent) {
+                altNode.parent = sParent;
             }
             convertLayout(altNode, node);
             convertBlend(altNode, node);
-            altNode.children = convertIntoAltNodes(node.children, altNode);
+            altNode.children = convertIntoSNodes(node.children, altNode);
             // try to find big rect and regardless of that result, also try to convert to autolayout.
             // There is a big chance this will be returned as a Frame
             // also, Group will always have at least 2 children.
@@ -2508,42 +2710,27 @@ const convertIntoAltNodes = (sceneNode, altParent = null) => {
             const altNode = new AltTextNode();
             altNode.id = node.id;
             altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
+            if (sParent) {
+                altNode.parent = sParent;
             }
             convertDefaultShape(altNode, node);
             convertIntoAltText(altNode, node);
             return altNode;
         }
         else if (node.type === 'COMPONENT') {
-            const altNode = new AltComponentNode();
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
+            const sNode = convertIntoSComponent(node);
+            convertDefaultShape(sNode, node);
+            if (sParent) {
+                sNode.parent = sParent;
             }
-            convertDefaultShape(altNode, node);
-            return altNode;
-        }
-        else if (node.type === 'INSTANCE') {
-            console.log('🇻🇳 ~ file: altConversion.ts ~ line 175 ~ node', node);
-            const altNode = new AltInstanceNode();
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
-            }
-            convertDefaultShape(altNode, node);
-            convertIntoInstance(altNode, node);
-            console.log('🇻🇳 ~ file: altConversion.ts ~ line 175 ~ altNode', altNode);
-            return altNode;
+            return sNode;
         }
         else if (node.type === 'VECTOR') {
             const altNode = new AltRectangleNode();
             altNode.id = node.id;
             altNode.name = node.name;
-            if (altParent) {
-                altNode.parent = altParent;
+            if (sParent) {
+                altNode.parent = sParent;
             }
             convertDefaultShape(altNode, node);
             // Vector support is still missing. Meanwhile, add placeholder.
@@ -2566,7 +2753,20 @@ const convertIntoAltNodes = (sceneNode, altParent = null) => {
             }
             return altNode;
         }
-        return null;
+        switch (node.type) {
+            case 'INSTANCE':
+                const sNode = convertIntoSInstance(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                if (node.children) {
+                    sNode.children = convertIntoSNodes(node.children, sNode);
+                }
+                // convertDefaultShape(sNode, node)
+                return sNode;
+            default:
+                return null;
+        }
     });
     return mapped.filter(notEmpty);
 };
@@ -2677,11 +2877,6 @@ const convertDefaultShape = (altNode, node) => {
     convertGeometry(altNode, node);
     // width, x, y
     convertLayout(altNode, node);
-    // interactions
-    convertReaction(altNode, node);
-};
-const convertReaction = (altNode, node) => {
-    altNode.reactions = node.reactions;
 };
 const convertCorner = (altNode, node) => {
     altNode.cornerRadius = node.cornerRadius;
@@ -2706,9 +2901,6 @@ const convertIntoAltText = (altNode, node) => {
     altNode.textAutoResize = node.textAutoResize;
     altNode.characters = node.characters;
     altNode.lineHeight = node.lineHeight;
-};
-const convertIntoInstance = (altNode, node) => {
-    altNode.mainComponent = node.mainComponent;
 };
 function notEmpty(value) {
     return value !== null && value !== undefined;
@@ -2942,7 +3134,9 @@ const convertGradient = (fills, framework) => {
 
 let parentId$1 = '';
 let showLayerName = false;
+let componentSet = new Set();
 const tailwindMain = (sceneNode, parentIdSrc = '', isJsx = false, layerName = false) => {
+    componentSet = new Set();
     parentId$1 = parentIdSrc;
     showLayerName = layerName;
     let result = tailwindWidgetGenerator(sceneNode, isJsx);
@@ -2951,17 +3145,17 @@ const tailwindMain = (sceneNode, parentIdSrc = '', isJsx = false, layerName = fa
         result = result.slice(1, result.length);
     }
     const scripts = [`<script>`];
-    const btnScript = `const submit = (value) => () => {
-    console.log('🇻🇳 ~ file: FigmaBuilder.svelte ~ line 4 ~ value', value)
-  }`;
-    scripts.push(btnScript);
+    if (componentSet.has('Button')) {
+        const ButtonScript = `import { Button } from '@/serverMiddleware/src/lib/Prediction'`;
+        scripts.push(ButtonScript);
+    }
     {
         scripts.push(`import Keypad from '@/serverMiddleware/src/components/Keypad.svelte'
 		const handleSubmit = () => {}
 		const maxLength = 4
 		`);
     }
-    scripts.push(`</script>\n`);
+    scripts.push(`</script>\n\n`);
     return scripts.join('\n') + result;
 };
 // todo lint idea: replace BorderRadius.only(topleft: 8, topRight: 8) with BorderRadius.horizontal(8)
@@ -2971,7 +3165,7 @@ const tailwindWidgetGenerator = (sceneNode, isJsx) => {
     const visibleSceneNode = sceneNode.filter((d) => d.visible !== false);
     visibleSceneNode.forEach((node) => {
         if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-            comp += tailwindContainer(node, '', '', { isRelative: false, isInput: false, isButton: false }, isJsx);
+            comp += tailwindContainer(node, '', '', { isRelative: false, isInput: false }, isJsx);
         }
         else if (node.type === 'GROUP') {
             comp += tailwindGroup(node, isJsx);
@@ -3045,18 +3239,50 @@ const tailwindComponent = (node) => {
     return `\n<Keypad on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }} />`;
 };
 const tailwindInstance = (node) => {
-    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 156 ~ node', node);
+    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 166 ~ node', node);
     const tag = node.mainComponent.name;
+    if (!tag) {
+        return '';
+    }
     let attr = '';
     switch (tag) {
         case 'Keypad':
             attr = `on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }}`;
             break;
+        case 'Button':
+            componentSet.add('Button');
+            const { action, trigger } = node.interactions[0];
+            // const build = builder.build(additionalAttr)
+            const option = action.type === 'SELECT' ? `'${action.option}'` : `''`;
+            const selection = `selection={${option}}`;
+            attr = `${selection} `;
     }
-    return `\n<${tag} ${attr} />`;
+    const childrenStr = tailwindWidgetGenerator(node.children, false);
+    // ignore the view when size is zero or less
+    // while technically it shouldn't get less than 0, due to rounding errors,
+    // it can get to values like: -0.000004196293048153166
+    if (node.width <= 0 || node.height <= 0) {
+        return childrenStr;
+    }
+    let isRelative = true;
+    let additionalAttr = 'relative ';
+    if (node.layoutMode !== 'NONE') {
+        additionalAttr = rowColumnProps(node);
+        isRelative = false;
+    }
+    const builder = new TailwindDefaultBuilder(node, showLayerName, false)
+        .blend(node)
+        .widthHeight(node)
+        .autoLayoutPadding(node)
+        .position(node, parentId$1, isRelative)
+        .customColor(node.fills, 'bg')
+        // TODO image and gradient support (tailwind does not support gradients)
+        .shadow(node)
+        .border(node);
+    return `\n<${tag} ${attr} ${builder.build(additionalAttr)} >${indentString(childrenStr)}\n</${tag}>`;
 };
 const tailwindFrame = (node, isJsx) => {
-    var _a, _b;
+    var _a;
     console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 137 ~ node', node);
     // const vectorIfExists = tailwindVector(node, isJsx);
     // if (vectorIfExists) return vectorIfExists;
@@ -3064,18 +3290,17 @@ const tailwindFrame = (node, isJsx) => {
         node.children[0].type === 'TEXT' &&
         ((_a = node === null || node === void 0 ? void 0 : node.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().match('input'))) {
         const [attr, char] = tailwindText(node.children[0], true, isJsx);
-        return tailwindContainer(node, ` placeholder="${char}"`, attr, { isRelative: false, isInput: true, isButton: false }, isJsx);
+        return tailwindContainer(node, ` placeholder="${char}"`, attr, { isRelative: false, isInput: true }, isJsx);
     }
     const childrenStr = tailwindWidgetGenerator(node.children, isJsx);
-    const isButton = ((_b = node.reactions) === null || _b === void 0 ? void 0 : _b.length) > 0;
     if (node.layoutMode !== 'NONE') {
         const rowColumn = rowColumnProps(node);
-        return tailwindContainer(node, childrenStr, rowColumn, { isRelative: false, isInput: false, isButton }, isJsx);
+        return tailwindContainer(node, childrenStr, rowColumn, { isRelative: false, isInput: false }, isJsx);
     }
     else {
         // node.layoutMode === "NONE" && node.children.length > 1
         // children needs to be absolute
-        return tailwindContainer(node, childrenStr, 'relative ', { isRelative: true, isInput: false, isButton }, isJsx);
+        return tailwindContainer(node, childrenStr, 'relative ', { isRelative: true, isInput: false }, isJsx);
     }
 };
 // properties named propSomething always take care of ","
@@ -3088,7 +3313,6 @@ const tailwindContainer = (node, children, additionalAttr, attr, isJsx) => {
     if (node.width <= 0 || node.height <= 0) {
         return children;
     }
-    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 196 ~ node', node);
     const builder = new TailwindDefaultBuilder(node, showLayerName, isJsx)
         .blend(node)
         .widthHeight(node)
@@ -3098,24 +3322,6 @@ const tailwindContainer = (node, children, additionalAttr, attr, isJsx) => {
         // TODO image and gradient support (tailwind does not support gradients)
         .shadow(node)
         .border(node);
-    if (attr.isButton) {
-        const { action, trigger } = node.reactions[0];
-        const ActionsMap = {
-            ON_CLICK: 'on:click',
-            AFTER_TIMEOUT: '',
-            MOUSE_DOWN: '',
-            MOUSE_ENTER: '',
-            MOUSE_LEAVE: '',
-            MOUSE_UP: '',
-            ON_DRAG: '',
-            ON_HOVER: '',
-            ON_PRESS: '',
-        };
-        const handler = action.type === 'URL' ? action.url : '';
-        const build = builder.build(additionalAttr);
-        const onclick = `${ActionsMap[trigger.type]}={${handler}}`;
-        return `\n<button${build} ${onclick}>${indentString(children)}\n</button>`;
-    }
     if (attr.isInput) {
         // children before the > is not a typo.
         return `\n<input${builder.build(additionalAttr)}${children}></input>`;
@@ -3285,25 +3491,6 @@ function createImagePaint(bytes) {
 }
 
 /**
- * Extracts the specified list of `attributes` from the given `array` of
- * plain objects.
- *
- * @returns Returns an array of plain objects.
- * @category Object
- */
-function pick(object, keys) {
-    const result = {};
-    for (const key of keys) {
-        const value = object[key];
-        if (typeof value === 'undefined') {
-            throw new Error(`Key \`${key}\` does not exist on \`object\``);
-        }
-        result[key] = value;
-    }
-    return result;
-}
-
-/**
  * Returns the node in the current document that has the given `id`.
  *
  * @category Node
@@ -3325,11 +3512,8 @@ let layerName = false;
 let assets = {};
 let mode;
 figma.showUI(__html__, { width: 450, height: 550 });
-if (figma.command == 'addOnClick') {
-    console.log('🇻🇳 ~ file: code.ts ~ line 23 ~ addOnClick');
-}
+if (figma.command == 'addOnClick') ;
 const run = () => {
-    // ignore when nothing was selected
     var _a, _b;
     if (figma.currentPage.selection.length === 0) {
         emit('empty');
@@ -3341,9 +3525,9 @@ const run = () => {
         parentId = (_b = (_a = selection[0].parent) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : '';
     }
     let result = '';
-    console.log('🇻🇳 ~ file: code.ts ~ line 38 ~ figma.currentPage.selection', figma.currentPage.selection[0]);
-    const convertedSelection = convertIntoAltNodes(figma.currentPage.selection, null);
-    console.log('🇻🇳 ~ file: code.ts ~ line 41 ~ convertedSelection', convertedSelection);
+    debugger;
+    const convertedSelection = convertIntoSNodes(figma.currentPage.selection, null);
+    console.log('🇻🇳 ~ file: code.ts ~ line 46 ~ convertedSelection', convertedSelection);
     if (mode === 'tailwind') {
         result = tailwindMain(convertedSelection, parentId, isJsx, layerName);
     }
@@ -3383,35 +3567,13 @@ figma.on('selectionchange', () => {
     run();
 });
 on('createInstance', (args) => {
-    console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args);
-    // const nodes: SceneNode[] = []
     const compName = 'Keypad';
     const comp = figma.createComponent();
     comp.name = compName;
     const rect = figma.createRectangle();
-    // create Image and get hash
-    console.log('🇻🇳 ~ file: code.ts ~ line 143 ~ assets[compName]', assets[compName]);
     const imgPaint = createImagePaint(assets[compName]);
-    console.log('🇻🇳 ~ file: code.ts ~ line 133 ~ imgPaint', imgPaint);
     rect.fills = [imgPaint];
     comp.appendChild(rect);
-    console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp);
-    // for (let i = 0; i < msg.count; i++) {
-    // 	var shape
-    // 	if (msg.shape === 'rectangle') {
-    // 		shape = figma.createRectangle()
-    // 	} else if (msg.shape === 'triangle') {
-    // 		shape = figma.createPolygon()
-    // 	} else if (msg.shape === 'line') {
-    // 		shape = figma.createLine()
-    // 	} else {
-    // 		shape = figma.createEllipse()
-    // 	}
-    // 	shape.x = i * 150
-    // 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
-    // 	figma.currentPage.appendChild(shape)
-    // 	nodes.push(shape)
-    // }
     // figma.currentPage.selection = nodes
     // figma.viewport.scrollAndZoomIntoView(nodes)
 });
@@ -3431,7 +3593,6 @@ on('createInteraction', (sSceneNode) => {
     const pluginData = { interactions };
     node.setPluginData(node.id, JSON.stringify(pluginData));
     emit('pluginDataChange', node.id, pluginData);
-    console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node);
     node.setRelaunchData({
         // open: 'Open this trapezoid with Shaper',
         addOnClick: 'Add sigma interactions',
@@ -3439,15 +3600,8 @@ on('createInteraction', (sSceneNode) => {
 });
 on('tailwind', (args) => {
     mode = 'tailwind';
-    if (args.assets) {
-        console.log('🇻🇳 ~ file: code.ts ~ line 199 ~ args', args);
+    if (args === null || args === void 0 ? void 0 : args.assets) {
         assets = args.assets;
-        // createInstance()
-        // create
-        /* <Component>
-                <RectangleNode fill="Image">
-                </RectangleNode>
-            </Component> */
     }
     run();
 });

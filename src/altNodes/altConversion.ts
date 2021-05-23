@@ -18,17 +18,31 @@ import {
 	AltReactionMixin,
 } from './altMixins'
 import { convertToAutoLayout } from './convertToAutoLayout'
+import type {
+	SInstanceNode,
+	SChildrenMixin,
+	SBaseNode,
+	SComponentNode,
+	SSceneNode,
+} from '../nodes/types'
+import { pick } from '../utilities/object/extract-attributes'
+import {
+	convertIntoSComponent,
+	convertIntoSInstance,
+} from '../nodes/sConversion'
+
+type SParent = AltFrameNode | AltGroupNode | (SBaseNode & SChildrenMixin) | null
 
 export const convertSingleNodeToAlt = (
 	node: SceneNode,
-	parent: AltFrameNode | AltGroupNode | null = null,
+	parent: SParent = null,
 ): AltSceneNode => {
-	return convertIntoAltNodes([node], parent)[0]
+	return convertIntoSNodes([node], parent)[0]
 }
 
 export const frameNodeToAlt = (
 	node: FrameNode | InstanceNode | ComponentNode,
-	altParent: AltFrameNode | AltGroupNode | null = null,
+	altParent: SParent = null,
 ): AltRectangleNode | AltFrameNode | AltGroupNode => {
 	if (node.children.length === 0) {
 		// if it has no children, convert frame to rectangle
@@ -49,7 +63,7 @@ export const frameNodeToAlt = (
 	convertCorner(altNode, node)
 	convertRectangleCorner(altNode, node)
 
-	altNode.children = convertIntoAltNodes(node.children, altNode)
+	altNode.children = convertIntoSNodes(node.children, altNode)
 
 	return convertToAutoLayout(convertNodesOnRectangle(altNode))
 }
@@ -57,7 +71,7 @@ export const frameNodeToAlt = (
 // auto convert Frame to Rectangle when Frame has no Children
 const frameToRectangleNode = (
 	node: FrameNode | InstanceNode | ComponentNode,
-	altParent: AltFrameNode | AltGroupNode | null,
+	altParent: SParent,
 ): AltRectangleNode => {
 	const newNode = new AltRectangleNode()
 
@@ -74,10 +88,14 @@ const frameToRectangleNode = (
 	return newNode
 }
 
-export const convertIntoAltNodes = (
+export const convertIntoSNodes = (
 	sceneNode: ReadonlyArray<SceneNode>,
-	altParent: AltFrameNode | AltGroupNode | null = null,
-): Array<AltSceneNode> => {
+	sParent:
+		| AltFrameNode
+		| AltGroupNode
+		| (SBaseNode & SChildrenMixin)
+		| null = null,
+): Array<AltSceneNode> | Array<SSceneNode> => {
 	const mapped: Array<AltSceneNode | null> = sceneNode.map(
 		(node: SceneNode) => {
 			if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
@@ -92,8 +110,8 @@ export const convertIntoAltNodes = (
 				altNode.id = node.id
 				altNode.name = node.name
 
-				if (altParent) {
-					altNode.parent = altParent
+				if (sParent) {
+					altNode.parent = sParent
 				}
 
 				convertDefaultShape(altNode, node)
@@ -106,8 +124,8 @@ export const convertIntoAltNodes = (
 				altNode.id = node.id
 				altNode.name = node.name
 
-				if (altParent) {
-					altNode.parent = altParent
+				if (sParent) {
+					altNode.parent = sParent
 				}
 
 				convertDefaultShape(altNode, node)
@@ -123,20 +141,20 @@ export const convertIntoAltNodes = (
 
 				return altNode
 			} else if (node.type === 'FRAME') {
-				const iconToRect = iconToRectangle(node, altParent)
+				const iconToRect = iconToRectangle(node, sParent)
 				if (iconToRect != null) {
 					return iconToRect
 				}
 
-				return frameNodeToAlt(node, altParent)
+				return frameNodeToAlt(node, sParent)
 			} else if (node.type === 'GROUP') {
 				if (node.children.length === 1 && node.visible !== false) {
 					// if Group is visible and has only one child, Group should disappear.
 					// there will be a single value anyway.
-					return convertIntoAltNodes(node.children, altParent)[0]
+					return convertIntoSNodes(node.children, sParent)[0]
 				}
 
-				const iconToRect = iconToRectangle(node, altParent)
+				const iconToRect = iconToRectangle(node, sParent)
 				if (iconToRect != null) {
 					return iconToRect
 				}
@@ -146,14 +164,14 @@ export const convertIntoAltNodes = (
 				altNode.id = node.id
 				altNode.name = node.name
 
-				if (altParent) {
-					altNode.parent = altParent
+				if (sParent) {
+					altNode.parent = sParent
 				}
 
 				convertLayout(altNode, node)
 				convertBlend(altNode, node)
 
-				altNode.children = convertIntoAltNodes(node.children, altNode)
+				altNode.children = convertIntoSNodes(node.children, altNode)
 
 				// try to find big rect and regardless of that result, also try to convert to autolayout.
 				// There is a big chance this will be returned as a Frame
@@ -165,48 +183,27 @@ export const convertIntoAltNodes = (
 				altNode.id = node.id
 				altNode.name = node.name
 
-				if (altParent) {
-					altNode.parent = altParent
+				if (sParent) {
+					altNode.parent = sParent
 				}
 
 				convertDefaultShape(altNode, node)
 				convertIntoAltText(altNode, node)
 				return altNode
 			} else if (node.type === 'COMPONENT') {
-				const altNode = new AltComponentNode()
-
-				altNode.id = node.id
-				altNode.name = node.name
-
-				if (altParent) {
-					altNode.parent = altParent
+				const sNode = convertIntoSComponent(node)
+				convertDefaultShape(sNode, node)
+				if (sParent) {
+					sNode.parent = sParent
 				}
-
-				convertDefaultShape(altNode, node)
-				convertIntoComponent(altNode, node)
-				return altNode
-			} else if (node.type === 'INSTANCE') {
-				console.log('🇻🇳 ~ file: altConversion.ts ~ line 175 ~ node', node)
-				const altNode = new AltInstanceNode()
-
-				altNode.id = node.id
-				altNode.name = node.name
-
-				if (altParent) {
-					altNode.parent = altParent
-				}
-
-				convertDefaultShape(altNode, node)
-				convertIntoInstance(altNode, node)
-				console.log('🇻🇳 ~ file: altConversion.ts ~ line 175 ~ altNode', altNode)
-				return altNode
+				return sNode
 			} else if (node.type === 'VECTOR') {
 				const altNode = new AltRectangleNode()
 				altNode.id = node.id
 				altNode.name = node.name
 
-				if (altParent) {
-					altNode.parent = altParent
+				if (sParent) {
+					altNode.parent = sParent
 				}
 
 				convertDefaultShape(altNode, node)
@@ -234,7 +231,23 @@ export const convertIntoAltNodes = (
 				return altNode
 			}
 
-			return null
+			switch (node.type) {
+				case 'INSTANCE':
+					const sNode = convertIntoSInstance(node)
+					if (sParent) {
+						sNode.parent = sParent
+					}
+					if (node.children) {
+						sNode.children = convertIntoSNodes(node.children, sNode)
+					}
+
+					// convertDefaultShape(sNode, node)
+
+					return sNode
+
+				default:
+					return null
+			}
 		},
 	)
 
@@ -243,7 +256,7 @@ export const convertIntoAltNodes = (
 
 const iconToRectangle = (
 	node: FrameNode | InstanceNode | ComponentNode | GroupNode,
-	altParent: AltFrameNode | AltGroupNode | null,
+	altParent: AltFrameNode | AltGroupNode | (SBaseNode & SChildrenMixin) | null,
 ): AltRectangleNode | null => {
 	if (node.children.every((d) => d.type === 'VECTOR')) {
 		const altNode = new AltRectangleNode()
@@ -377,13 +390,6 @@ const convertDefaultShape = (
 
 	// width, x, y
 	convertLayout(altNode, node)
-
-	// interactions
-	convertReaction(altNode, node)
-}
-
-const convertReaction = (altNode: AltReactionMixin, node: ReactionMixin) => {
-	altNode.reactions = node.reactions
 }
 
 const convertCorner = (altNode: AltCornerMixin, node: CornerMixin) => {
@@ -414,15 +420,6 @@ const convertIntoAltText = (altNode: AltTextNode, node: TextNode) => {
 	altNode.textAutoResize = node.textAutoResize
 	altNode.characters = node.characters
 	altNode.lineHeight = node.lineHeight
-}
-
-const convertIntoComponent = (
-	altNode: AltComponentNode,
-	node: ComponentNode,
-) => {}
-
-const convertIntoInstance = (altNode: AltInstanceNode, node: InstanceNode) => {
-	altNode.mainComponent = node.mainComponent
 }
 
 export function notEmpty<TValue>(

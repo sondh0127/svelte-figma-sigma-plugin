@@ -20,7 +20,6 @@
 
 	$: textObservable = textData
 	$: codeObservable = codeData
-	$: emptyObservable = emptySelection
 
 	$: interactions = (
 		sSceneNode ? pluginData[sSceneNode.id]?.interactions || [] : []
@@ -82,6 +81,7 @@
 	})
 
 	on('result', (result) => {
+		emptySelection = false
 		codeData = result
 	})
 
@@ -115,7 +115,7 @@
 	import Input from '../components/figma-plugin-ds-svelte/Input.svelte'
 
 	onMount(async () => {
-		const canvas = document.createElement('canvas')
+		/* 		const canvas = document.createElement('canvas')
 		const ctx = canvas.getContext('2d')
 		canvas.width = (imageKeypad as HTMLImageElement).width
 		canvas.height = (imageKeypad as HTMLImageElement).height
@@ -135,7 +135,8 @@
 		let assets = {}
 		assets = { Keypad: newBytes }
 
-		emit('tailwind', { assets })
+		emit('tailwind', { assets }) */
+		emit('tailwind')
 	})
 
 	const sectionStyle = 'border rounded-lg bg-white'
@@ -166,15 +167,6 @@
 	</div>
 	<div class="tab">
 		<TabControlItem id="1" payload="Code" active>
-			<div>
-				<div class="flex flex-col items-center p-4 bg-gray-50">
-					<div class="flex space-x-4 mt-2">
-						<a href="https://play.tailwindcss.com/" target="_blank">
-							<Button variant="secondary">Tailwind Play</Button>
-						</a>
-					</div>
-				</div>
-			</div>
 			<div class="px-2 pt-2 bg-gray-50">
 				{#if emptySelection}
 					<div
@@ -191,7 +183,7 @@
 							</Button>
 						</div>
 
-						<Prism language="html" source={codeObservable} />
+						<Prism language="svelte" source={codeObservable} />
 
 						<div
 							class="flex items-center content-center justify-end mx-2 mb-2 space-x-8"

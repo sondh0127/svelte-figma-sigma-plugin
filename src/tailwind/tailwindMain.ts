@@ -14,9 +14,12 @@ import { tailwindVector } from './vector'
 import { TailwindTextBuilder } from './tailwindTextBuilder'
 import { TailwindDefaultBuilder } from './tailwindDefaultBuilder'
 import { retrieveTopFill } from '../common/retrieveFill'
+import type { SInstanceNode, SInteraction, STrigger } from '../nodes/types'
 
 let parentId = ''
 let showLayerName = false
+
+let componentSet = new Set()
 
 export const tailwindMain = (
 	sceneNode: Array<AltSceneNode>,
@@ -24,6 +27,7 @@ export const tailwindMain = (
 	isJsx: boolean = false,
 	layerName: boolean = false,
 ): string => {
+	componentSet = new Set()
 	parentId = parentIdSrc
 	showLayerName = layerName
 	const hasKeypad = true
@@ -36,10 +40,10 @@ export const tailwindMain = (
 	}
 
 	const scripts = [`<script>`]
-	const btnScript = `const submit = (value) => () => {
-    console.log('🇻🇳 ~ file: FigmaBuilder.svelte ~ line 4 ~ value', value)
-  }`
-	scripts.push(btnScript)
+	if (componentSet.has('Button')) {
+		const ButtonScript = `import { Button } from '@/serverMiddleware/src/lib/Prediction'`
+		scripts.push(ButtonScript)
+	}
 
 	if (hasKeypad) {
 		scripts.push(`import Keypad from '@/serverMiddleware/src/components/Keypad.svelte'
@@ -48,7 +52,7 @@ export const tailwindMain = (
 		`)
 	}
 
-	scripts.push(`</script>\n`)
+	scripts.push(`</script>\n\n`)
 	return scripts.join('\n') + result
 }
 
@@ -68,7 +72,7 @@ const tailwindWidgetGenerator = (
 				node,
 				'',
 				'',
-				{ isRelative: false, isInput: false, isButton: false },
+				{ isRelative: false, isInput: false },
 				isJsx,
 			)
 		} else if (node.type === 'GROUP') {
@@ -161,23 +165,72 @@ const tailwindComponent = (
 	return `\n<Keypad on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }} />`
 }
 
-type ComponentTag = 'Keypad'
-
-const tailwindInstance = (node: AltInstanceNode): string | [string, string] => {
-	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 156 ~ node', node)
-	const tag = node.mainComponent.name as ComponentTag
+const tailwindInstance = (node: SInstanceNode): string => {
+	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 166 ~ node', node)
+	const tag = node.mainComponent.name
+	if (!tag) {
+		return ''
+	}
 
 	let attr = ''
 	switch (tag) {
 		case 'Keypad':
 			attr = `on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }}`
 			break
+		case 'Button':
+			componentSet.add('Button')
+			const { action, trigger } = node.interactions[0] as SInteraction
+			const TRIGGER_MAP: Record<STrigger['type'], string> = {
+				ON_CLICK: 'on:click',
+				AFTER_TIMEOUT: '',
+				MOUSE_DOWN: '',
+				MOUSE_ENTER: '',
+				MOUSE_LEAVE: '',
+				MOUSE_UP: '',
+				ON_DRAG: '',
+				ON_HOVER: '',
+				ON_PRESS: '',
+			}
 
+			// const build = builder.build(additionalAttr)
+			const option = action.type === 'SELECT' ? `'${action.option}'` : `''`
+			const selection = `selection={${option}}`
+
+			attr = `${selection} `
 		default:
 			break
 	}
 
-	return `\n<${tag} ${attr} />`
+	const childrenStr = tailwindWidgetGenerator(node.children, false)
+	// ignore the view when size is zero or less
+	// while technically it shouldn't get less than 0, due to rounding errors,
+	// it can get to values like: -0.000004196293048153166
+	if (node.width <= 0 || node.height <= 0) {
+		return childrenStr
+	}
+
+	const isJsx = false
+	let isRelative = true
+	let additionalAttr = 'relative '
+
+	if (node.layoutMode !== 'NONE') {
+		additionalAttr = rowColumnProps(node)
+		isRelative = false
+	}
+
+	const builder = new TailwindDefaultBuilder(node, showLayerName, false)
+		.blend(node)
+		.widthHeight(node)
+		.autoLayoutPadding(node)
+		.position(node, parentId, isRelative)
+		.customColor(node.fills, 'bg')
+		// TODO image and gradient support (tailwind does not support gradients)
+		.shadow(node)
+		.border(node)
+
+	return `\n<${tag} ${attr} ${builder.build(additionalAttr)} >${indentString(
+		childrenStr,
+	)}\n</${tag}>`
 }
 
 const tailwindFrame = (node: AltFrameNode, isJsx: boolean): string => {
@@ -195,13 +248,12 @@ const tailwindFrame = (node: AltFrameNode, isJsx: boolean): string => {
 			node,
 			` placeholder="${char}"`,
 			attr,
-			{ isRelative: false, isInput: true, isButton: false },
+			{ isRelative: false, isInput: true },
 			isJsx,
 		)
 	}
 
 	const childrenStr = tailwindWidgetGenerator(node.children, isJsx)
-	const isButton = node.reactions?.length > 0
 
 	if (node.layoutMode !== 'NONE') {
 		const rowColumn = rowColumnProps(node)
@@ -209,7 +261,7 @@ const tailwindFrame = (node: AltFrameNode, isJsx: boolean): string => {
 			node,
 			childrenStr,
 			rowColumn,
-			{ isRelative: false, isInput: false, isButton },
+			{ isRelative: false, isInput: false },
 			isJsx,
 		)
 	} else {
@@ -219,7 +271,7 @@ const tailwindFrame = (node: AltFrameNode, isJsx: boolean): string => {
 			node,
 			childrenStr,
 			'relative ',
-			{ isRelative: true, isInput: false, isButton },
+			{ isRelative: true, isInput: false },
 			isJsx,
 		)
 	}
@@ -234,7 +286,6 @@ export const tailwindContainer = (
 	attr: {
 		isRelative: boolean
 		isInput: boolean
-		isButton: boolean
 	},
 	isJsx: boolean,
 ): string => {
@@ -244,7 +295,6 @@ export const tailwindContainer = (
 	if (node.width <= 0 || node.height <= 0) {
 		return children
 	}
-	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 196 ~ node', node)
 
 	const builder = new TailwindDefaultBuilder(node, showLayerName, isJsx)
 		.blend(node)
@@ -255,26 +305,6 @@ export const tailwindContainer = (
 		// TODO image and gradient support (tailwind does not support gradients)
 		.shadow(node)
 		.border(node)
-
-	if (attr.isButton) {
-		const { action, trigger } = node.reactions[0]
-		const ActionsMap: Record<Trigger['type'], string> = {
-			ON_CLICK: 'on:click',
-			AFTER_TIMEOUT: '',
-			MOUSE_DOWN: '',
-			MOUSE_ENTER: '',
-			MOUSE_LEAVE: '',
-			MOUSE_UP: '',
-			ON_DRAG: '',
-			ON_HOVER: '',
-			ON_PRESS: '',
-		}
-
-		const handler = action.type === 'URL' ? action.url : ''
-		const build = builder.build(additionalAttr)
-		const onclick = `${ActionsMap[trigger.type]}={${handler}}`
-		return `\n<button${build} ${onclick}>${indentString(children)}\n</button>`
-	}
 
 	if (attr.isInput) {
 		// children before the > is not a typo.

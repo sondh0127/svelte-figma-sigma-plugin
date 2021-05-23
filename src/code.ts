@@ -4,7 +4,7 @@ import {
 	retrieveGenericSolidUIColors,
 } from './common/retrieveUI/retrieveColors'
 import { tailwindMain } from './tailwind/tailwindMain'
-import { convertIntoAltNodes } from './altNodes/altConversion'
+import { convertIntoSNodes } from './altNodes/altConversion'
 import { clone } from './helper'
 import type { SInstanceNode } from './nodes/types'
 import { once, emit, on } from './utilities/events'
@@ -15,7 +15,6 @@ import { getSceneNodeById } from './utilities/node/get-nodes/get-scene-node-by-i
 let parentId: string
 let isJsx = false
 let layerName = false
-let material = true
 
 let assets = {}
 
@@ -24,12 +23,9 @@ let mode: 'tailwind'
 figma.showUI(__html__, { width: 450, height: 550 })
 
 if (figma.command == 'addOnClick') {
-	console.log('🇻🇳 ~ file: code.ts ~ line 23 ~ addOnClick')
 }
 
 const run = () => {
-	// ignore when nothing was selected
-
 	if (figma.currentPage.selection.length === 0) {
 		emit('empty')
 		return
@@ -42,16 +38,13 @@ const run = () => {
 	}
 
 	let result = ''
-	console.log(
-		'🇻🇳 ~ file: code.ts ~ line 38 ~ figma.currentPage.selection',
-		figma.currentPage.selection[0],
-	)
-	const convertedSelection = convertIntoAltNodes(
+	debugger
+	const convertedSelection = convertIntoSNodes(
 		figma.currentPage.selection,
 		null,
 	)
 	console.log(
-		'🇻🇳 ~ file: code.ts ~ line 41 ~ convertedSelection',
+		'🇻🇳 ~ file: code.ts ~ line 46 ~ convertedSelection',
 		convertedSelection,
 	)
 
@@ -105,45 +98,17 @@ figma.on('selectionchange', () => {
 })
 
 on('createInstance', (args) => {
-	console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args)
-	// const nodes: SceneNode[] = []
 	const compName = 'Keypad'
 	const comp = figma.createComponent()
 	comp.name = compName
 
 	const rect = figma.createRectangle()
 
-	// create Image and get hash
-	console.log(
-		'🇻🇳 ~ file: code.ts ~ line 143 ~ assets[compName]',
-		assets[compName],
-	)
-
 	const imgPaint = createImagePaint(assets[compName])
-	console.log('🇻🇳 ~ file: code.ts ~ line 133 ~ imgPaint', imgPaint)
 
 	rect.fills = [imgPaint]
 
 	comp.appendChild(rect)
-	console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp)
-	// for (let i = 0; i < msg.count; i++) {
-	// 	var shape
-
-	// 	if (msg.shape === 'rectangle') {
-	// 		shape = figma.createRectangle()
-	// 	} else if (msg.shape === 'triangle') {
-	// 		shape = figma.createPolygon()
-	// 	} else if (msg.shape === 'line') {
-	// 		shape = figma.createLine()
-	// 	} else {
-	// 		shape = figma.createEllipse()
-	// 	}
-
-	// 	shape.x = i * 150
-	// 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
-	// 	figma.currentPage.appendChild(shape)
-	// 	nodes.push(shape)
-	// }
 
 	// figma.currentPage.selection = nodes
 	// figma.viewport.scrollAndZoomIntoView(nodes)
@@ -171,8 +136,6 @@ on('createInteraction', (sSceneNode) => {
 	node.setPluginData(node.id, JSON.stringify(pluginData))
 	emit('pluginDataChange', node.id, pluginData)
 
-	console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node)
-
 	node.setRelaunchData({
 		// open: 'Open this trapezoid with Shaper',
 		addOnClick: 'Add sigma interactions',
@@ -181,15 +144,8 @@ on('createInteraction', (sSceneNode) => {
 
 on('tailwind', (args) => {
 	mode = 'tailwind'
-	if (args.assets) {
-		console.log('🇻🇳 ~ file: code.ts ~ line 199 ~ args', args)
+	if (args?.assets) {
 		assets = args.assets
-		// createInstance()
-		// create
-		/* <Component>
-				<RectangleNode fill="Image">
-				</RectangleNode>
-			</Component> */
 	}
 	run()
 })

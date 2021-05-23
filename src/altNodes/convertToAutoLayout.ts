@@ -1,3 +1,4 @@
+import type { SInstanceNode, SComponentNode } from '../nodes/types'
 import { mostFrequent } from './../swiftui/swiftuiMain'
 import type { AltFrameNode, AltGroupNode, AltSceneNode } from './altMixins'
 import { convertGroupToFrame } from './convertGroupToFrame'
@@ -10,8 +11,8 @@ import { convertGroupToFrame } from './convertGroupToFrame'
  * convert it to Frame before adding the attributes. Group doesn't have AutoLayout properties.
  */
 export const convertToAutoLayout = (
-	node: AltFrameNode | AltGroupNode,
-): AltFrameNode | AltGroupNode => {
+	node: AltFrameNode | AltGroupNode | SInstanceNode | SComponentNode,
+): AltFrameNode | AltGroupNode | SInstanceNode | SComponentNode => {
 	// only go inside when AutoLayout is not already set.
 
 	if (
