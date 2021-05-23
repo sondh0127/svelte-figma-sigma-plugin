@@ -2,21 +2,22 @@
 import './global.css'
 
 //Components
-import Button from './Button.svelte'
+export { default as Button } from './Button.svelte'
 // import Checkbox from './components/Checkbox/index.svelte'
 // import Disclosure from './components/Disclosure/index.svelte'
 // import DisclosureItem from './components/DisclosureItem/index.svelte'
-// import Icon from './components/Icon/index.svelte'
+export { default as Icon } from './Icon.svelte'
 // import IconButton from './components/IconButton/index.svelte'
-// import Input from './components/Input/index.svelte'
-import Label from './Label.svelte'
+export { default as Input } from './Input.svelte'
+export { default as Label } from './Label.svelte'
+
 // import OnboardingTip from './components/OnboardingTip/index.svelte'
 // import Radio from './components/Radio/index.svelte'
 // import Section from './components/Section/index.svelte'
 // import SelectDivider from './components/SelectDivider/index.svelte'
 // import SelectItem from './components/SelectItem/index.svelte'
 // import SelectMenu from './components/SelectMenu/index.svelte'
-import Switch from './Switch.svelte'
+export { default as Switch } from './Switch.svelte'
 // import Textarea from './components/Textarea/index.svelte'
 // import Type from './components/Type/index.svelte'
 
@@ -107,109 +108,3 @@ import Switch from './Switch.svelte'
 // import IconVisible from './icons/visible.svg'
 // import IconWarningLarge from './icons/warning-large.svg'
 // import IconWarning from './icons/warning.svg'
-
-export {
-	Button,
-	// Checkbox,
-	// Disclosure,
-	// DisclosureItem,
-	// Icon,
-	// IconButton,
-	// Input,
-	Label,
-	// OnboardingTip,
-	// Radio,
-	// Section,
-	// SelectDivider,
-	// SelectItem,
-	// SelectMenu,
-	Switch,
-	// Textarea,
-	// Type,
-	// IconAdjust,
-	// IconAlert,
-	// IconAngle,
-	// IconArrowLeftRight,
-	// IconUpDown,
-	// IconAutoLayoutHorizontal,
-	// IconAutoLayoutVertical,
-	// IconBack,
-	// IconBlendEmpty,
-	// IconBlend,
-	// IconBreak,
-	// IconCaretDown,
-	// IconCaretLeft,
-	// IconCaretRight,
-	// IconCaretUp,
-	// IconCheck,
-	// IconClose,
-	// IconComponent,
-	// IconCornerRadius,
-	// IconCorners,
-	// IconDistributeHorizontalSpacing,
-	// IconDistributeVerticalSpacing,
-	// IconDraft,
-	// IconEffects,
-	// IconEllipses,
-	// IconEyedropper,
-	// IconForward,
-	// IconFrame,
-	// IconGroup,
-	// IconHidden,
-	// IconHorizontalPadding,
-	// IconHyperlink,
-	// IconImage,
-	// IconInstance,
-	// IconKey,
-	// IconLayoutAlignBottom,
-	// IconAlignHorizontalCenters,
-	// IconAlignLeft,
-	// IconAlignRight,
-	// IconAlignTop,
-	// IconAlignVerticalCenters,
-	// IconLayoutGridColumns,
-	// IconLayoutGridRows,
-	// IconLayoutGridUniform,
-	// IconLibrary,
-	// IconLinkBroken,
-	// IconLinkConnected,
-	// IconListDetailed,
-	// IconListTile,
-	// IconList,
-	// IconLockOff,
-	// IconLockOn,
-	// IconMinus,
-	// IconPlay,
-	// IconPlus,
-	// IconRandom,
-	// IconRecent,
-	// IconResizeToFit,
-	// IconResolveFilled,
-	// IconResolve,
-	// IconReverse,
-	// IconSearchLarge,
-	// IconSearch,
-	// IconSettings,
-	// IconShare,
-	// IconSmiley,
-	// IconSortAlphaAsc,
-	// IconSortAlphaDsc,
-	// IconSortTopBottom,
-	// IconSpacing,
-	// IconSpinner,
-	// IconStarOff,
-	// IconStarOn,
-	// IconStrokeWeight,
-	// IconStyles,
-	// IconSwap,
-	// IconTheme,
-	// IconTidyUpGrid,
-	// IconTidyUpListHorizontal,
-	// IconTidyUpListVertical,
-	// IconTimer,
-	// IconTrash,
-	// IconVerticalPadding,
-	// IconVisible,
-	// IconWarningLarge,
-	// IconWarning,
-}

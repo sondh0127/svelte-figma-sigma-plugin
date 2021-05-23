@@ -452,8 +452,10 @@ interface Font {
 }
 
 type SReaction = { action: SAction; trigger: STrigger }
+type SInteraction = { action: SAction; trigger: STrigger }
 
 type SAction =
+	| { type: 'SELECT'; option: string }
 	| { type: 'BACK' | 'CLOSE' }
 	| { type: 'URL'; url: string }
 	| {
@@ -661,6 +663,10 @@ interface SReactionMixin {
 	reactions: Array<SReaction>
 }
 
+interface SInteractionMixin {
+	interactions: Array<SInteraction>
+}
+
 interface DocumentationLink {
 	readonly uri: string
 }
@@ -719,7 +725,8 @@ interface SBaseFrameMixin
 interface SDefaultFrameMixin
 	extends SBaseFrameMixin,
 		SFramePrototypingMixin,
-		SReactionMixin {}
+		// SReactionMixin,
+		SInteractionMixin {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Nodes
@@ -739,16 +746,16 @@ interface DocumentNode extends SBaseNodeMixin {
 	 * to call node.children.filter(callback) or node.findChildren(callback)
 	 */
 	findAll(
-		callback?: (node: PageNode | SceneNode) => boolean,
-	): Array<PageNode | SceneNode>
+		callback?: (node: PageNode | SSceneNode) => boolean,
+	): Array<PageNode | SSceneNode>
 
 	/**
 	 * If you only need to search immediate children, it is much faster
 	 * to call node.children.find(callback) or node.findChild(callback)
 	 */
 	findOne(
-		callback: (node: PageNode | SceneNode) => boolean,
-	): PageNode | SceneNode | null
+		callback: (node: PageNode | SSceneNode) => boolean,
+	): PageNode | SSceneNode | null
 }
 
 interface PageNode extends SBaseNodeMixin, SChildrenMixin, SExportMixin {
@@ -756,7 +763,7 @@ interface PageNode extends SBaseNodeMixin, SChildrenMixin, SExportMixin {
 	clone(): PageNode
 
 	guides: ReadonlyArray<Guide>
-	selection: ReadonlyArray<SceneNode>
+	selection: ReadonlyArray<SSceneNode>
 	selectedTextRange: { node: TextNode; start: number; end: number } | null
 
 	backgrounds: ReadonlyArray<Paint>
@@ -935,9 +942,9 @@ interface BooleanOperationNode
 	expanded: boolean
 }
 
-type BaseNode = DocumentNode | PageNode | SceneNode
+type BaseNode = DocumentNode | PageNode | SSceneNode
 
-type SceneNode =
+export type SSceneNode =
 	| SliceNode
 	| FrameNode
 	| GroupNode

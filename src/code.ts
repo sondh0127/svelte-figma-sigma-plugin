@@ -10,6 +10,7 @@ import type { SInstanceNode } from './nodes/types'
 import { once, emit, on } from './utilities/events'
 import { createImagePaint } from './utilities/node/create-image-paint'
 import { pick } from './utilities/object/extract-attributes'
+import { getSceneNodeById } from './utilities/node/get-nodes/get-scene-node-by-id'
 
 let parentId: string
 let isJsx = false
@@ -38,36 +39,6 @@ const run = () => {
 	if (figma.currentPage.selection.length > 0) {
 		const selection = figma.currentPage.selection
 		parentId = selection[0].parent?.id ?? ''
-
-		const isSingleSelection = selection.length === 1
-
-		if (isSingleSelection) {
-			switch (selection[0].type) {
-				case 'INSTANCE':
-					const includeComponent = ['Button']
-					const mainComponentName = selection[0].mainComponent.name
-
-					if (includeComponent.includes(mainComponentName)) {
-						// search google this
-						// Object.keys() from interface ??????????/
-						const node = pick(selection[0], ['id', 'type'])
-						let reactions = []
-						try {
-							reactions = JSON.parse(
-								selection[0].getPluginData(selection[0].id),
-							)
-						} catch (error) {
-							reactions = []
-						}
-
-						emit('selected', { node })
-					}
-					break
-
-				default:
-					break
-			}
-		}
 	}
 
 	let result = ''
@@ -99,7 +70,43 @@ const run = () => {
 	}
 }
 
-async function createInstance() {
+figma.on('selectionchange', () => {
+	emit('selectionchange')
+	const selection = figma.currentPage.selection
+	const isSingleSelection = selection.length === 1
+
+	if (isSingleSelection) {
+		switch (selection[0].type) {
+			case 'INSTANCE':
+				const includeComponent = ['Button']
+				const mainComponentName = selection[0].mainComponent.name
+
+				if (includeComponent.includes(mainComponentName)) {
+					const node = pick(selection[0], ['id', 'type'])
+					let pluginData = []
+					try {
+						pluginData = JSON.parse(selection[0].getPluginData(selection[0].id))
+					} catch (error) {
+						pluginData = []
+					}
+
+					emit('pluginDataChange', node.id, pluginData)
+
+					emit('selected', node)
+				}
+				break
+
+			default:
+				break
+		}
+	}
+
+	run()
+})
+
+on('createInstance', (args) => {
+	console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args)
+	// const nodes: SceneNode[] = []
 	const compName = 'Keypad'
 	const comp = figma.createComponent()
 	comp.name = compName
@@ -119,17 +126,6 @@ async function createInstance() {
 
 	comp.appendChild(rect)
 	console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp)
-}
-
-figma.on('selectionchange', () => {
-	emit('selectionchange')
-	run()
-})
-
-on('createInstance', (args) => {
-	console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args)
-	// const nodes: SceneNode[] = []
-	createInstance()
 	// for (let i = 0; i < msg.count; i++) {
 	// 	var shape
 
@@ -153,22 +149,31 @@ on('createInstance', (args) => {
 	// figma.viewport.scrollAndZoomIntoView(nodes)
 })
 
-on('create-reaction', (args) => {
-	const sNode: SInstanceNode = args.node
-	const node = figma.getNodeById(sNode.id)
+on('pluginDataChange', (id, value) => {
+	const screenNode = getSceneNodeById(id)
+	screenNode.setPluginData(id, JSON.stringify(value))
+})
 
-	node.setPluginData(
-		node.id,
-		JSON.stringify({
+on('createInteraction', (sSceneNode) => {
+	const sInstanceNode: SInstanceNode = sSceneNode
+
+	const interactions: SInstanceNode['interactions'] = [
+		{
 			trigger: { type: 'ON_CLICK' },
-			action: { type: 'URL', url: 'handle' },
-		}),
-	)
+			action: { type: 'SELECT', option: 'A' },
+		},
+	]
+
+	const node = figma.getNodeById(sInstanceNode.id)
+
+	const pluginData = { interactions }
+
+	node.setPluginData(node.id, JSON.stringify(pluginData))
+	emit('pluginDataChange', node.id, pluginData)
 
 	console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node)
 
 	node.setRelaunchData({
-		// edit: 'Edit this trapezoid with Shaper',
 		// open: 'Open this trapezoid with Shaper',
 		addOnClick: 'Add sigma interactions',
 	})

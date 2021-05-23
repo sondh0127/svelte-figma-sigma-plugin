@@ -4,7 +4,7 @@
 	import SectionGradient from './GenericGradientSection.svelte'
 	import SectionSolid from './GenericSolidColorSection.svelte'
 	import imageKeypad from '../assets/Keypad.png'
-	import type { SInstanceNode } from '../nodes/types'
+	import type { SInstanceNode, SSceneNode } from '../nodes/types'
 
 	import Prism from 'svelte-prism'
 	import 'prism-theme-night-owl'
@@ -14,11 +14,21 @@
 	let codeData = ''
 	let emptySelection = false
 
-	let sInstanceNode: SInstanceNode | null = null
+	let sSceneNode: SSceneNode | null = null
+
+	let pluginData = {}
 
 	$: textObservable = textData
 	$: codeObservable = codeData
 	$: emptyObservable = emptySelection
+
+	$: interactions = (
+		sSceneNode ? pluginData[sSceneNode.id]?.interactions || [] : []
+	) as SInstanceNode['interactions']
+
+	$: if (sSceneNode) {
+		emit('pluginDataChange', sSceneNode.id, pluginData[sSceneNode.id])
+	}
 
 	if (false) {
 		// DEBUG
@@ -47,16 +57,20 @@
 `
 	}
 
-	function resetOnSelectionChange() {
-		sInstanceNode = null
-	}
-
-	on('selectionchange', () => {
-		resetOnSelectionChange()
+	on('pluginDataChange', (id, value) => {
+		pluginData[id] = value
 	})
 
-	on('selected', (args) => {
-		sInstanceNode = args.node
+	on('selectionchange', () => {
+		sSceneNode = null
+	})
+
+	on('selected', (_sSceneNode) => {
+		console.log(
+			'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 59 ~ _sSceneNode',
+			_sSceneNode,
+		)
+		sSceneNode = _sSceneNode
 	})
 
 	on('empty', (args) => {
@@ -98,12 +112,9 @@
 	import { Label } from '../components/figma-plugin-ds-svelte'
 	import { encode } from '../helper'
 	import { emit, on } from '../utilities/events'
+	import Input from '../components/figma-plugin-ds-svelte/Input.svelte'
 
 	onMount(async () => {
-		console.log(
-			'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 123 ~ imageKeypad',
-			imageKeypad,
-		)
 		const canvas = document.createElement('canvas')
 		const ctx = canvas.getContext('2d')
 		canvas.width = (imageKeypad as HTMLImageElement).width
@@ -139,7 +150,7 @@
 	}
 
 	function handleAdd() {
-		emit('create-reaction', { node: sInstanceNode })
+		emit('createInteraction', sSceneNode)
 	}
 </script>
 
@@ -229,21 +240,22 @@
 		</TabControlItem>
 		<TabControlItem id="2" payload="Component">
 			<Button on:click={createKeypad}>Create Keypad</Button>
-			{#if sInstanceNode}
+			{#if sSceneNode?.type === 'INSTANCE'}
 				<div class="flex flex-col">
 					<div class="flex">
 						<Label>Interactions</Label>
 						<Button on:click={handleAdd}>+</Button>
 					</div>
 
-					{#if sInstanceNode.reactions.length > 0}
-						{#each sInstanceNode.reactions as reaction}
-							<div class="flex">
-								<span>{reaction.trigger.type}</span>
-								<span>{reaction.action.type}</span>
-							</div>
-						{/each}
-					{/if}
+					{#each interactions as interaction}
+						<div class="flex justify-between">
+							<span>{interaction.trigger.type}</span>
+							<span>{interaction.action.type}</span>
+							{#if interaction.action.type === 'SELECT'}
+								<Input bind:value={interaction.action.option} />
+							{/if}
+						</div>
+					{/each}
 				</div>
 			{/if}
 		</TabControlItem>

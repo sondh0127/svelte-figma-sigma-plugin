@@ -3303,6 +3303,22 @@ function pick(object, keys) {
     return result;
 }
 
+/**
+ * Returns the node in the current document that has the given `id`.
+ *
+ * @category Node
+ */
+function getSceneNodeById(id) {
+    const node = figma.getNodeById(id);
+    if (node === null) {
+        throw new Error(`No node found with \`id\`: ${id}`);
+    }
+    if (node.type === 'DOCUMENT' || node.type === 'PAGE') {
+        throw new Error('`node` is not a `SceneNode`');
+    }
+    return node;
+}
+
 let parentId;
 let isJsx = false;
 let layerName = false;
@@ -3323,28 +3339,6 @@ const run = () => {
     if (figma.currentPage.selection.length > 0) {
         const selection = figma.currentPage.selection;
         parentId = (_b = (_a = selection[0].parent) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : '';
-        const isSingleSelection = selection.length === 1;
-        if (isSingleSelection) {
-            switch (selection[0].type) {
-                case 'INSTANCE':
-                    const includeComponent = ['Button'];
-                    const mainComponentName = selection[0].mainComponent.name;
-                    if (includeComponent.includes(mainComponentName)) {
-                        // search google this
-                        // Object.keys() from interface ??????????/
-                        const node = pick(selection[0], ['id', 'type']);
-                        let reactions = [];
-                        try {
-                            reactions = JSON.parse(selection[0].getPluginData(selection[0].id));
-                        }
-                        catch (error) {
-                            reactions = [];
-                        }
-                        emit('selected', { node });
-                    }
-                    break;
-            }
-        }
     }
     let result = '';
     console.log('🇻🇳 ~ file: code.ts ~ line 38 ~ figma.currentPage.selection', figma.currentPage.selection[0]);
@@ -3362,7 +3356,35 @@ const run = () => {
         emit('text', retrieveTailwindText(convertedSelection));
     }
 };
-async function createInstance() {
+figma.on('selectionchange', () => {
+    emit('selectionchange');
+    const selection = figma.currentPage.selection;
+    const isSingleSelection = selection.length === 1;
+    if (isSingleSelection) {
+        switch (selection[0].type) {
+            case 'INSTANCE':
+                const includeComponent = ['Button'];
+                const mainComponentName = selection[0].mainComponent.name;
+                if (includeComponent.includes(mainComponentName)) {
+                    const node = pick(selection[0], ['id', 'type']);
+                    let pluginData = [];
+                    try {
+                        pluginData = JSON.parse(selection[0].getPluginData(selection[0].id));
+                    }
+                    catch (error) {
+                        pluginData = [];
+                    }
+                    emit('pluginDataChange', node.id, pluginData);
+                    emit('selected', node);
+                }
+                break;
+        }
+    }
+    run();
+});
+on('createInstance', (args) => {
+    console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args);
+    // const nodes: SceneNode[] = []
     const compName = 'Keypad';
     const comp = figma.createComponent();
     comp.name = compName;
@@ -3374,15 +3396,6 @@ async function createInstance() {
     rect.fills = [imgPaint];
     comp.appendChild(rect);
     console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp);
-}
-figma.on('selectionchange', () => {
-    emit('selectionchange');
-    run();
-});
-on('createInstance', (args) => {
-    console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args);
-    // const nodes: SceneNode[] = []
-    createInstance();
     // for (let i = 0; i < msg.count; i++) {
     // 	var shape
     // 	if (msg.shape === 'rectangle') {
@@ -3402,16 +3415,24 @@ on('createInstance', (args) => {
     // figma.currentPage.selection = nodes
     // figma.viewport.scrollAndZoomIntoView(nodes)
 });
-on('create-reaction', (args) => {
-    const sNode = args.node;
-    const node = figma.getNodeById(sNode.id);
-    node.setPluginData(node.id, JSON.stringify({
-        trigger: { type: 'ON_CLICK' },
-        action: { type: 'URL', url: 'handle' },
-    }));
+on('pluginDataChange', (id, value) => {
+    const screenNode = getSceneNodeById(id);
+    screenNode.setPluginData(id, JSON.stringify(value));
+});
+on('createInteraction', (sSceneNode) => {
+    const sInstanceNode = sSceneNode;
+    const interactions = [
+        {
+            trigger: { type: 'ON_CLICK' },
+            action: { type: 'SELECT', option: 'A' },
+        },
+    ];
+    const node = figma.getNodeById(sInstanceNode.id);
+    const pluginData = { interactions };
+    node.setPluginData(node.id, JSON.stringify(pluginData));
+    emit('pluginDataChange', node.id, pluginData);
     console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node);
     node.setRelaunchData({
-        // edit: 'Edit this trapezoid with Shaper',
         // open: 'Open this trapezoid with Shaper',
         addOnClick: 'Add sigma interactions',
     });
