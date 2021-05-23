@@ -5,8 +5,11 @@ import {
 } from './common/retrieveUI/retrieveColors'
 import { tailwindMain } from './tailwind/tailwindMain'
 import { convertIntoAltNodes } from './altNodes/altConversion'
-import { clone, pick } from './helper'
+import { clone } from './helper'
 import type { SInstanceNode } from './nodes/types'
+import { once, emit, on } from './utilities/events'
+import { createImagePaint } from './utilities/node/create-image-paint'
+import { pick } from './utilities/object/extract-attributes'
 
 let parentId: string
 let isJsx = false
@@ -27,9 +30,7 @@ const run = () => {
 	// ignore when nothing was selected
 
 	if (figma.currentPage.selection.length === 0) {
-		figma.ui.postMessage({
-			type: 'empty',
-		})
+		emit('empty')
 		return
 	}
 
@@ -49,23 +50,17 @@ const run = () => {
 					if (includeComponent.includes(mainComponentName)) {
 						// search google this
 						// Object.keys() from interface ??????????/
-						const { id, type, reactions } = selection[0]
-						const action = selection[0].getPluginData(selection[0].id)
-						if (action) {
-							console.log(
-								'🇻🇳 ~ file: code.ts ~ line 54 ~ action',
-								JSON.parse(action),
+						const node = pick(selection[0], ['id', 'type'])
+						let reactions = []
+						try {
+							reactions = JSON.parse(
+								selection[0].getPluginData(selection[0].id),
 							)
+						} catch (error) {
+							reactions = []
 						}
-						const node: SInstanceNode = {
-							id,
-							type,
-							reactions: clone(reactions),
-						}
-						figma.ui.postMessage({
-							type: 'selected',
-							node,
-						})
+
+						emit('selected', { node })
 					}
 					break
 
@@ -93,27 +88,14 @@ const run = () => {
 		result = tailwindMain(convertedSelection, parentId, isJsx, layerName)
 	}
 
-	figma.ui.postMessage({
-		type: 'result',
-		data: result,
-	})
+	emit('result', result)
 
 	if (mode === 'tailwind') {
-		figma.ui.postMessage({
-			type: 'colors',
-			data: retrieveGenericSolidUIColors(convertedSelection, mode),
-		})
-
-		figma.ui.postMessage({
-			type: 'gradients',
-			data: retrieveGenericLinearGradients(convertedSelection, mode),
-		})
+		emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode))
+		emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode))
 	}
 	if (mode === 'tailwind') {
-		figma.ui.postMessage({
-			type: 'text',
-			data: retrieveTailwindText(convertedSelection),
-		})
+		emit('text', retrieveTailwindText(convertedSelection))
 	}
 }
 
@@ -125,103 +107,98 @@ async function createInstance() {
 	const rect = figma.createRectangle()
 
 	// create Image and get hash
-	const imageHash = figma.createImage(assets[compName]).hash
+	console.log(
+		'🇻🇳 ~ file: code.ts ~ line 143 ~ assets[compName]',
+		assets[compName],
+	)
 
-	const imagePaint: ImagePaint = {
-		type: 'IMAGE',
-		scaleMode: 'FILL',
-		imageHash: imageHash,
-	}
-	rect.fills = [imagePaint]
+	const imgPaint = createImagePaint(assets[compName])
+	console.log('🇻🇳 ~ file: code.ts ~ line 133 ~ imgPaint', imgPaint)
+
+	rect.fills = [imgPaint]
 
 	comp.appendChild(rect)
 	console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp)
 }
 
 figma.on('selectionchange', () => {
-	figma.ui.postMessage({
-		type: 'selectionchange',
-	})
+	emit('selectionchange')
 	run()
 })
 
-// efficient? No. Works? Yes.
-// todo pass data instead of relying in types
-figma.ui.onmessage = (msg) => {
-	const { type, ...payload } = msg
-	if (msg.type === 'tailwind') {
-		mode = msg.type
-		if (msg.assets) {
-			assets = msg.assets
-			// createInstance()
-			// create
-			/* <Component>
+on('createInstance', (args) => {
+	console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args)
+	// const nodes: SceneNode[] = []
+	createInstance()
+	// for (let i = 0; i < msg.count; i++) {
+	// 	var shape
+
+	// 	if (msg.shape === 'rectangle') {
+	// 		shape = figma.createRectangle()
+	// 	} else if (msg.shape === 'triangle') {
+	// 		shape = figma.createPolygon()
+	// 	} else if (msg.shape === 'line') {
+	// 		shape = figma.createLine()
+	// 	} else {
+	// 		shape = figma.createEllipse()
+	// 	}
+
+	// 	shape.x = i * 150
+	// 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
+	// 	figma.currentPage.appendChild(shape)
+	// 	nodes.push(shape)
+	// }
+
+	// figma.currentPage.selection = nodes
+	// figma.viewport.scrollAndZoomIntoView(nodes)
+})
+
+on('create-reaction', (args) => {
+	const sNode: SInstanceNode = args.node
+	const node = figma.getNodeById(sNode.id)
+
+	node.setPluginData(
+		node.id,
+		JSON.stringify({
+			trigger: { type: 'ON_CLICK' },
+			action: { type: 'URL', url: 'handle' },
+		}),
+	)
+
+	console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node)
+
+	node.setRelaunchData({
+		// edit: 'Edit this trapezoid with Shaper',
+		// open: 'Open this trapezoid with Shaper',
+		addOnClick: 'Add sigma interactions',
+	})
+})
+
+on('tailwind', (args) => {
+	mode = 'tailwind'
+	if (args.assets) {
+		console.log('🇻🇳 ~ file: code.ts ~ line 199 ~ args', args)
+		assets = args.assets
+		// createInstance()
+		// create
+		/* <Component>
 				<RectangleNode fill="Image">
 				</RectangleNode>
 			</Component> */
-		}
-		run()
-	} else if (msg.type === 'jsx' && msg.data !== isJsx) {
-		isJsx = msg.data
-		run()
-	} else if (msg.type === 'layerName' && msg.data !== layerName) {
-		layerName = msg.data
-		run()
-	} else if (msg.type === 'material' && msg.data !== material) {
-		material = msg.data
+	}
+	run()
+})
+
+on('jsx', (args) => {
+	if (args.data !== isJsx) {
+		isJsx = args.data
 		run()
 	}
+})
 
-	switch (msg.type) {
-		case 'createInstance':
-			const nodes: SceneNode[] = []
-			console.log('🇻🇳 ~ file: code.ts ~ line 138 ~ assets', assets)
-			createInstance()
-			// for (let i = 0; i < msg.count; i++) {
-			// 	var shape
-
-			// 	if (msg.shape === 'rectangle') {
-			// 		shape = figma.createRectangle()
-			// 	} else if (msg.shape === 'triangle') {
-			// 		shape = figma.createPolygon()
-			// 	} else if (msg.shape === 'line') {
-			// 		shape = figma.createLine()
-			// 	} else {
-			// 		shape = figma.createEllipse()
-			// 	}
-
-			// 	shape.x = i * 150
-			// 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
-			// 	figma.currentPage.appendChild(shape)
-			// 	nodes.push(shape)
-			// }
-
-			// figma.currentPage.selection = nodes
-			// figma.viewport.scrollAndZoomIntoView(nodes)
-			break
-		case 'create-reaction': {
-			const sNode: SInstanceNode = payload.node
-			const node = figma.getNodeById(sNode.id)
-
-			node.setPluginData(
-				node.id,
-				JSON.stringify({
-					trigger: { type: 'ON_CLICK' },
-					action: { type: 'URL', url: 'handle' },
-				}),
-			)
-
-			console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node)
-
-			node.setRelaunchData({
-				// edit: 'Edit this trapezoid with Shaper',
-				// open: 'Open this trapezoid with Shaper',
-				addOnClick: 'Add sigma interactions',
-			})
-
-			break
-		}
-		default:
-			break
+on('layerName', (args) => {
+	if (args.data !== layerName) {
+		layerName = args.data
+		run()
 	}
-}
+})

@@ -51,56 +51,36 @@
 		sInstanceNode = null
 	}
 
-	window.onmessage = async (event) => {
-		console.log('got this from the plugin code', event.data)
+	on('selectionchange', () => {
+		resetOnSelectionChange()
+	})
 
-		const msg = event.data.pluginMessage
-		const { type, ...payload } = msg
+	on('selected', (args) => {
+		sInstanceNode = args.node
+	})
 
-		switch (type) {
-			case 'selectionchange':
-				resetOnSelectionChange()
-				break
-			case 'selected':
-				console.log(
-					'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 58 ~ payload',
-					payload,
-				)
-				sInstanceNode = payload.node
-				break
+	on('empty', (args) => {
+		emptySelection = true
+	})
 
-			default:
-				break
-		}
+	on('text', (args) => {
+		textData = args
+	})
 
-		if (!event.data.pluginMessage) {
-			return
-		}
-
-		if (emptySelection !== (event.data.pluginMessage.type === 'empty')) {
-			emptySelection = event.data.pluginMessage.type === 'empty'
-		}
-
-		if (event.data.pluginMessage.type === 'text') {
-			textData = event.data.pluginMessage.data
-		} else if (event.data.pluginMessage.type === 'result') {
-			codeData = event.data.pluginMessage.data
-		}
-	}
+	on('result', (result) => {
+		codeData = result
+	})
 
 	import { Switch, Button } from '../components/figma-plugin-ds-svelte'
 
 	let jsx = false
 	$: if (jsx || !jsx) {
-		parent.postMessage({ pluginMessage: { type: 'jsx', data: jsx } }, '*')
+		emit('jsx', { data: jsx })
 	}
 
 	let layerName = false
 	$: if (layerName || !layerName) {
-		parent.postMessage(
-			{ pluginMessage: { type: 'layerName', data: layerName } },
-			'*',
-		)
+		emit('jsx', { data: layerName })
 	}
 
 	import { createEventDispatcher } from 'svelte'
@@ -117,29 +97,34 @@
 	import TabControlItem from '../components/TabControlItem.svelte'
 	import { Label } from '../components/figma-plugin-ds-svelte'
 	import { encode } from '../helper'
+	import { emit, on } from '../utilities/events'
 
 	onMount(async () => {
-		// const canvas = document.createElement('canvas')
-		// const ctx = canvas.getContext('2d')
-		// canvas.width = (imageKeypad as HTMLImageElement).width
-		// canvas.height = (imageKeypad as HTMLImageElement).height
+		console.log(
+			'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 123 ~ imageKeypad',
+			imageKeypad,
+		)
+		const canvas = document.createElement('canvas')
+		const ctx = canvas.getContext('2d')
+		canvas.width = (imageKeypad as HTMLImageElement).width
+		canvas.height = (imageKeypad as HTMLImageElement).height
 
-		// ctx.drawImage(imageKeypad, 0, 0)
+		ctx.drawImage(imageKeypad, 0, 0)
 
-		// const newBytes = await new Promise((resolve, reject) => {
-		// 	canvas.toBlob((blob) => {
-		// 		const reader = new FileReader()
-		// 		reader.onload = () => resolve(new Uint8Array(reader.result))
-		// 		reader.onerror = () => reject(new Error('Could not read from blob'))
-		// 		reader.readAsArrayBuffer(blob)
-		// 	})
-		// })
-		// document.getElementById('imageContainer').appendChild(canvas)
+		const newBytes = await new Promise((resolve, reject) => {
+			canvas.toBlob((blob) => {
+				const reader = new FileReader()
+				reader.onload = () => resolve(new Uint8Array(reader.result))
+				reader.onerror = () => reject(new Error('Could not read from blob'))
+				reader.readAsArrayBuffer(blob)
+			})
+		})
+		document.getElementById('imageContainer').appendChild(canvas)
 
-		// const assets = { Keypad: newBytes }
-		const assets = {}
+		let assets = {}
+		assets = { Keypad: newBytes }
 
-		postMessage({ type: 'tailwind', assets })
+		emit('tailwind', { assets })
 	})
 
 	const sectionStyle = 'border rounded-lg bg-white'
@@ -148,13 +133,17 @@
 		parent.postMessage({ pluginMessage: msg }, '*')
 	}
 
-	function createInstance() {
-		postMessage({
-			type: 'createInstance',
-			component: 'Keypad',
-		})
+	function createKeypad() {
+		console.log('🇻🇳 ~ file: ScreenTailwind.svelte ~ line 239 ~ click')
+		emit('createInstance', {})
+	}
+
+	function handleAdd() {
+		emit('create-reaction', { node: sInstanceNode })
 	}
 </script>
+
+<div id="imageContainer" />
 
 <TabControl>
 	<div class="flex items-center" slot="tabs" let:tabs>
@@ -166,7 +155,6 @@
 	</div>
 	<div class="tab">
 		<TabControlItem id="1" payload="Code" active>
-			<div id="imageContainer" />
 			<div>
 				<div class="flex flex-col items-center p-4 bg-gray-50">
 					<div class="flex space-x-4 mt-2">
@@ -240,19 +228,12 @@
 			</div>
 		</TabControlItem>
 		<TabControlItem id="2" payload="Component">
-			<Button on:click={createInstance}>Create Keypad</Button>
+			<Button on:click={createKeypad}>Create Keypad</Button>
 			{#if sInstanceNode}
 				<div class="flex flex-col">
 					<div class="flex">
 						<Label>Interactions</Label>
-						<Button
-							on:click={() => {
-								postMessage({
-									type: 'create-reaction',
-									node: sInstanceNode,
-								})
-							}}>+</Button
-						>
+						<Button on:click={handleAdd}>+</Button>
 					</div>
 
 					{#if sInstanceNode.reactions.length > 0}

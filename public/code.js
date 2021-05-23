@@ -1,32 +1,5 @@
 'use strict';
 
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-
-function __rest(s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
-            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
-                t[p[i]] = s[p[i]];
-        }
-    return t;
-}
-
 const nearestValue = (goal, array) => {
     return array.reduce(function (prev, curr) {
         return Math.abs(curr - goal) < Math.abs(prev - goal) ? curr : prev;
@@ -3240,39 +3213,99 @@ const rowColumnProps = (node) => {
     return `${flex}${rowOrColumn}${space}${counterAlign}${primaryAlign}`;
 };
 
-function clone(val) {
-    const type = typeof val;
-    if (val === null) {
-        return null;
+const eventHandlers = {};
+let currentId = 0;
+/**
+ * Registers an event `handler` for the given event `name`.
+ *
+ * @returns Returns a function for deregistering the `handler`.
+ * @category Events
+ */
+function on(name, handler) {
+    const id = `${currentId}`;
+    currentId += 1;
+    eventHandlers[id] = { handler, name };
+    return function () {
+        delete eventHandlers[id];
+    };
+}
+/**
+ * Calling `emit` in the main context invokes the event handler for the
+ * matching event `name` in your UI. Correspondingly, calling `emit` in your
+ * UI invokes the event handler for the matching event `name` in the main
+ * context.
+ *
+ * All `args` passed after `name` will be directly
+ * [applied](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply)
+ * on the event handler.
+ *
+ * @category Events
+ */
+const emit = typeof window === 'undefined'
+    ? function (name, ...args) {
+        figma.ui.postMessage([name, ...args]);
     }
-    else if (type === 'undefined' ||
-        type === 'number' ||
-        type === 'string' ||
-        type === 'boolean') {
-        return val;
-    }
-    else if (type === 'object') {
-        if (val instanceof Array) {
-            return val.map((x) => clone(x));
-        }
-        else if (val instanceof Uint8Array) {
-            return new Uint8Array(val);
-        }
-        else {
-            let o = {};
-            for (const key in val) {
-                o[key] = clone(val[key]);
-            }
-            return o;
+    : function (name, ...args) {
+        window.parent.postMessage({
+            pluginMessage: [name, ...args],
+        }, '*');
+    };
+function invokeEventHandler(name, args) {
+    for (const id in eventHandlers) {
+        if (eventHandlers[id].name === name) {
+            eventHandlers[id].handler.apply(null, args);
         }
     }
-    throw 'unknown';
+}
+if (typeof window === 'undefined') {
+    figma.ui.onmessage = function ([name, ...args]) {
+        invokeEventHandler(name, args);
+    };
+}
+else {
+    window.onmessage = function (event) {
+        const [name, ...args] = event.data.pluginMessage;
+        invokeEventHandler(name, args);
+    };
+}
+
+/**
+ * Creates an `ImagePaint` object from the `bytes` of an image.
+ *
+ * @category Node
+ */
+function createImagePaint(bytes) {
+    const image = figma.createImage(bytes);
+    return {
+        imageHash: image.hash,
+        scaleMode: 'FILL',
+        scalingFactor: 0.5,
+        type: 'IMAGE'
+    };
+}
+
+/**
+ * Extracts the specified list of `attributes` from the given `array` of
+ * plain objects.
+ *
+ * @returns Returns an array of plain objects.
+ * @category Object
+ */
+function pick(object, keys) {
+    const result = {};
+    for (const key of keys) {
+        const value = object[key];
+        if (typeof value === 'undefined') {
+            throw new Error(`Key \`${key}\` does not exist on \`object\``);
+        }
+        result[key] = value;
+    }
+    return result;
 }
 
 let parentId;
 let isJsx = false;
 let layerName = false;
-let material = true;
 let assets = {};
 let mode;
 figma.showUI(__html__, { width: 450, height: 550 });
@@ -3283,9 +3316,7 @@ const run = () => {
     // ignore when nothing was selected
     var _a, _b;
     if (figma.currentPage.selection.length === 0) {
-        figma.ui.postMessage({
-            type: 'empty',
-        });
+        emit('empty');
         return;
     }
     // check [ignoreStackParent] description
@@ -3301,20 +3332,15 @@ const run = () => {
                     if (includeComponent.includes(mainComponentName)) {
                         // search google this
                         // Object.keys() from interface ??????????/
-                        const { id, type, reactions } = selection[0];
-                        const action = selection[0].getPluginData(selection[0].id);
-                        if (action) {
-                            console.log('🇻🇳 ~ file: code.ts ~ line 54 ~ action', JSON.parse(action));
+                        const node = pick(selection[0], ['id', 'type']);
+                        let reactions = [];
+                        try {
+                            reactions = JSON.parse(selection[0].getPluginData(selection[0].id));
                         }
-                        const node = {
-                            id,
-                            type,
-                            reactions: clone(reactions),
-                        };
-                        figma.ui.postMessage({
-                            type: 'selected',
-                            node,
-                        });
+                        catch (error) {
+                            reactions = [];
+                        }
+                        emit('selected', { node });
                     }
                     break;
             }
@@ -3327,25 +3353,13 @@ const run = () => {
     if (mode === 'tailwind') {
         result = tailwindMain(convertedSelection, parentId, isJsx, layerName);
     }
-    figma.ui.postMessage({
-        type: 'result',
-        data: result,
-    });
+    emit('result', result);
     if (mode === 'tailwind') {
-        figma.ui.postMessage({
-            type: 'colors',
-            data: retrieveGenericSolidUIColors(convertedSelection, mode),
-        });
-        figma.ui.postMessage({
-            type: 'gradients',
-            data: retrieveGenericLinearGradients(convertedSelection, mode),
-        });
+        emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode));
+        emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode));
     }
     if (mode === 'tailwind') {
-        figma.ui.postMessage({
-            type: 'text',
-            data: retrieveTailwindText(convertedSelection),
-        });
+        emit('text', retrieveTailwindText(convertedSelection));
     }
 };
 async function createInstance() {
@@ -3354,88 +3368,77 @@ async function createInstance() {
     comp.name = compName;
     const rect = figma.createRectangle();
     // create Image and get hash
-    const imageHash = figma.createImage(assets[compName]).hash;
-    const imagePaint = {
-        type: 'IMAGE',
-        scaleMode: 'FILL',
-        imageHash: imageHash,
-    };
-    rect.fills = [imagePaint];
+    console.log('🇻🇳 ~ file: code.ts ~ line 143 ~ assets[compName]', assets[compName]);
+    const imgPaint = createImagePaint(assets[compName]);
+    console.log('🇻🇳 ~ file: code.ts ~ line 133 ~ imgPaint', imgPaint);
+    rect.fills = [imgPaint];
     comp.appendChild(rect);
     console.log('🇻🇳 ~ file: code.ts ~ line 96 ~ comp', comp);
 }
 figma.on('selectionchange', () => {
-    figma.ui.postMessage({
-        type: 'selectionchange',
-    });
+    emit('selectionchange');
     run();
 });
-// efficient? No. Works? Yes.
-// todo pass data instead of relying in types
-figma.ui.onmessage = (msg) => {
-    const payload = __rest(msg, ["type"]);
-    if (msg.type === 'tailwind') {
-        mode = msg.type;
-        if (msg.assets) {
-            assets = msg.assets;
-            // createInstance()
-            // create
-            /* <Component>
+on('createInstance', (args) => {
+    console.log('🇻🇳 ~ file: code.ts ~ line 207 ~ args', args);
+    // const nodes: SceneNode[] = []
+    createInstance();
+    // for (let i = 0; i < msg.count; i++) {
+    // 	var shape
+    // 	if (msg.shape === 'rectangle') {
+    // 		shape = figma.createRectangle()
+    // 	} else if (msg.shape === 'triangle') {
+    // 		shape = figma.createPolygon()
+    // 	} else if (msg.shape === 'line') {
+    // 		shape = figma.createLine()
+    // 	} else {
+    // 		shape = figma.createEllipse()
+    // 	}
+    // 	shape.x = i * 150
+    // 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
+    // 	figma.currentPage.appendChild(shape)
+    // 	nodes.push(shape)
+    // }
+    // figma.currentPage.selection = nodes
+    // figma.viewport.scrollAndZoomIntoView(nodes)
+});
+on('create-reaction', (args) => {
+    const sNode = args.node;
+    const node = figma.getNodeById(sNode.id);
+    node.setPluginData(node.id, JSON.stringify({
+        trigger: { type: 'ON_CLICK' },
+        action: { type: 'URL', url: 'handle' },
+    }));
+    console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node);
+    node.setRelaunchData({
+        // edit: 'Edit this trapezoid with Shaper',
+        // open: 'Open this trapezoid with Shaper',
+        addOnClick: 'Add sigma interactions',
+    });
+});
+on('tailwind', (args) => {
+    mode = 'tailwind';
+    if (args.assets) {
+        console.log('🇻🇳 ~ file: code.ts ~ line 199 ~ args', args);
+        assets = args.assets;
+        // createInstance()
+        // create
+        /* <Component>
                 <RectangleNode fill="Image">
                 </RectangleNode>
             </Component> */
-        }
+    }
+    run();
+});
+on('jsx', (args) => {
+    if (args.data !== isJsx) {
+        isJsx = args.data;
         run();
     }
-    else if (msg.type === 'jsx' && msg.data !== isJsx) {
-        isJsx = msg.data;
+});
+on('layerName', (args) => {
+    if (args.data !== layerName) {
+        layerName = args.data;
         run();
     }
-    else if (msg.type === 'layerName' && msg.data !== layerName) {
-        layerName = msg.data;
-        run();
-    }
-    else if (msg.type === 'material' && msg.data !== material) {
-        material = msg.data;
-        run();
-    }
-    switch (msg.type) {
-        case 'createInstance':
-            console.log('🇻🇳 ~ file: code.ts ~ line 138 ~ assets', assets);
-            createInstance();
-            // for (let i = 0; i < msg.count; i++) {
-            // 	var shape
-            // 	if (msg.shape === 'rectangle') {
-            // 		shape = figma.createRectangle()
-            // 	} else if (msg.shape === 'triangle') {
-            // 		shape = figma.createPolygon()
-            // 	} else if (msg.shape === 'line') {
-            // 		shape = figma.createLine()
-            // 	} else {
-            // 		shape = figma.createEllipse()
-            // 	}
-            // 	shape.x = i * 150
-            // 	shape.fills = [{ type: 'SOLID', color: { r: 1, g: 0.5, b: 0 } }]
-            // 	figma.currentPage.appendChild(shape)
-            // 	nodes.push(shape)
-            // }
-            // figma.currentPage.selection = nodes
-            // figma.viewport.scrollAndZoomIntoView(nodes)
-            break;
-        case 'create-reaction': {
-            const sNode = payload.node;
-            const node = figma.getNodeById(sNode.id);
-            node.setPluginData(node.id, JSON.stringify({
-                trigger: { type: 'ON_CLICK' },
-                action: { type: 'URL', url: 'handle' },
-            }));
-            console.log('🇻🇳 ~ file: code.ts ~ line 204 ~ node', node);
-            node.setRelaunchData({
-                // edit: 'Edit this trapezoid with Shaper',
-                // open: 'Open this trapezoid with Shaper',
-                addOnClick: 'Add sigma interactions',
-            });
-            break;
-        }
-    }
-};
+});

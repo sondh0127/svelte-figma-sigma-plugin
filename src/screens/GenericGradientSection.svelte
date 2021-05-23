@@ -1,6 +1,7 @@
-<script>
+<script lang="ts">
 	import { createEventDispatcher } from 'svelte'
 	import { onDestroy } from 'svelte'
+	import { on } from '../utilities/events'
 
 	const dispatch = createEventDispatcher()
 	const clipboard = (data) => dispatch('clipboard', { text: data })
@@ -10,21 +11,12 @@
 	let gradientsData = []
 	$: gradientsObservable = gradientsData
 
-	function handleMessage(event) {
-		console.log('handleMessage gradientSection got', event.data)
-		if (!event.data.pluginMessage) {
-			return
-		}
-
-		if (event.data.pluginMessage.type === 'gradients') {
-			gradientsData = event.data.pluginMessage.data
-		}
-	}
-
-	addEventListener('message', handleMessage)
+	const remove = on('gradients', (gradients) => {
+		gradientsData = gradients
+	})
 
 	onDestroy(() => {
-		removeEventListener('message', handleMessage)
+		remove()
 	})
 </script>
 

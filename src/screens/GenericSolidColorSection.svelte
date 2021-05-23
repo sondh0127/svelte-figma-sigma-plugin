@@ -1,6 +1,7 @@
 <script>
 	import { createEventDispatcher } from 'svelte'
 	import { onDestroy } from 'svelte'
+	import { on } from '../utilities/events'
 	import TailwindItemColor from './TailwindItemColor.svelte'
 
 	const dispatch = createEventDispatcher()
@@ -12,21 +13,12 @@
 	let colorsData = []
 	$: colorsObservable = colorsData
 
-	function handleMessage(event) {
-		console.log('handleMessage solidSection got', event.data)
-		if (!event.data.pluginMessage) {
-			return
-		}
-
-		if (event.data.pluginMessage.type === 'colors') {
-			colorsData = event.data.pluginMessage.data
-		}
-	}
-
-	addEventListener('message', handleMessage)
+	const remove = on('colors', (colors) => {
+		colorsData = colors
+	})
 
 	onDestroy(() => {
-		removeEventListener('message', handleMessage)
+		remove()
 	})
 </script>
 
