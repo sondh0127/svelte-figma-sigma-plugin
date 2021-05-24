@@ -213,13 +213,32 @@ export const convertIntoSComponent = (node: ComponentNode): SComponentNode => {
 type ComponentTag = 'Keypad' | 'Button'
 
 export const convertIntoSInstance = (node: InstanceNode): SInstanceNode => {
-	const interactions =
-		JSON.parse(node.getPluginData(node.id))['interactions'] || []
+	let interactions = []
+	try {
+		JSON.parse(node.getPluginData(node.id))['interactions']
+	} catch (error) {
+		interactions = []
+	}
 
 	return convertToAutoLayout({
 		...convertSBaseFrame(node),
 		...pick(node, ['type']),
 		interactions,
+		mainComponent: convertIntoSComponent(node.mainComponent),
+	})
+}
+
+export const convertIntoSFrame = (node: InstanceNode): SInstanceNode => {
+	let focusSection = null
+	try {
+		focusSection = JSON.parse(node.getPluginData(node.id))['focusSection']
+	} catch (error) {
+		focusSection = null
+	}
+	return convertToAutoLayout({
+		...convertSBaseFrame(node),
+		...pick(node, ['type']),
+		focusSection,
 		mainComponent: convertIntoSComponent(node.mainComponent),
 	})
 }

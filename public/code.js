@@ -1430,41 +1430,32 @@ class TailwindDefaultBuilder {
         // or current element is one of the absoltue children and has a width or height > w/h-64
         var _a;
         if ('isRelative' in node && node.isRelative === true) {
-            console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 1');
             this.style += htmlSizeForTailwind(node, this.isJSX);
         }
         else if (((_a = node.parent) === null || _a === void 0 ? void 0 : _a.isRelative) === true ||
             node.width > 384 ||
             node.height > 384) {
-            console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2');
             // to avoid mixing html and tailwind sizing too much, only use html sizing when absolutely necessary.
             // therefore, if only one attribute is larger than 256, only use the html size in there.
             const [tailwindWidth, tailwindHeight] = tailwindSizePartial(node);
             const [htmlWidth, htmlHeight] = htmlSizePartialForTailwind(node, this.isJSX);
-            console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 149 ~ htmlWidth, htmlHeight', htmlWidth, htmlHeight);
             // when textAutoResize is NONE or WIDTH_AND_HEIGHT, it has a defined width.
             if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
-                console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.1');
                 if (node.width > 384) {
-                    console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.1.1');
                     this.attributes += htmlWidth;
                 }
                 else {
-                    console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.1.2');
                     this.attributes += tailwindWidth;
                 }
                 this.hasFixedSize = htmlWidth !== '';
             }
             // when textAutoResize is NONE has a defined height.
             if (node.type !== 'TEXT' || node.textAutoResize === 'NONE') {
-                console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.2');
                 if (node.width > 384) {
-                    console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.2.1');
                     // this.style += htmlHeight
                     this.attributes += htmlHeight;
                 }
                 else {
-                    console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.2.2');
                     this.attributes += tailwindHeight;
                 }
                 this.hasFixedSize = htmlHeight !== '';
@@ -1472,15 +1463,12 @@ class TailwindDefaultBuilder {
         }
         else {
             const partial = tailwindSizePartial(node);
-            console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 3');
             // Width
             if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
-                console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 3.1');
                 this.attributes += partial[0];
             }
             // Height
             if (node.type !== 'TEXT' || node.textAutoResize === 'NONE') {
-                console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 3.2');
                 this.attributes += partial[1];
             }
             this.hasFixedSize = partial[0] !== '' && partial[1] !== '';
@@ -1508,7 +1496,6 @@ class TailwindDefaultBuilder {
                 this.style = ` style={{${this.style}}}`;
             }
             else {
-                console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 214 ~ this.style', this.style);
                 this.style = ` style="${this.style}"`;
             }
         }
@@ -2604,10 +2591,19 @@ const convertIntoSComponent = (node) => {
     return Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, ['type', 'remote', 'key'])), { interactions });
 };
 const convertIntoSInstance = (node) => {
-    const interactions = JSON.parse(node.getPluginData(node.id))['interactions'] || [];
+    let interactions = [];
+    try {
+        JSON.parse(node.getPluginData(node.id))['interactions'];
+    }
+    catch (error) {
+        interactions = [];
+    }
     return convertToAutoLayout(Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, ['type'])), { interactions, mainComponent: convertIntoSComponent(node.mainComponent) }));
 };
 
+const convertSingleNodeToAlt = (node, parent = null) => {
+    return convertIntoSNodes([node], parent)[0];
+};
 const frameNodeToAlt = (node, altParent = null) => {
     if (node.children.length === 0) {
         // if it has no children, convert frame to rectangle
@@ -2624,7 +2620,14 @@ const frameNodeToAlt = (node, altParent = null) => {
     convertCorner(altNode, node);
     convertRectangleCorner(altNode, node);
     altNode.children = convertIntoSNodes(node.children, altNode);
-    return convertToAutoLayout(convertNodesOnRectangle(altNode));
+    let focusSection = null;
+    try {
+        focusSection = JSON.parse(node.getPluginData(node.id))['focusSection'];
+    }
+    catch (error) {
+        focusSection = null;
+    }
+    return convertToAutoLayout(convertNodesOnRectangle(Object.assign(Object.assign({}, altNode), { focusSection })));
 };
 // auto convert Frame to Rectangle when Frame has no Children
 const frameToRectangleNode = (node, altParent) => {
@@ -2674,13 +2677,6 @@ const convertIntoSNodes = (sceneNode, sParent = null) => {
             // Remove 1 since it now has a height of 1. It won't be visually perfect, but will be almost.
             altNode.strokeWeight = altNode.strokeWeight - 1;
             return altNode;
-        }
-        else if (node.type === 'FRAME') {
-            const iconToRect = iconToRectangle(node, sParent);
-            if (iconToRect != null) {
-                return iconToRect;
-            }
-            return frameNodeToAlt(node, sParent);
         }
         else if (node.type === 'GROUP') {
             if (node.children.length === 1 && node.visible !== false) {
@@ -2764,6 +2760,12 @@ const convertIntoSNodes = (sceneNode, sParent = null) => {
                 }
                 // convertDefaultShape(sNode, node)
                 return sNode;
+            case 'FRAME':
+                const iconToRect = iconToRectangle(node, sParent);
+                if (iconToRect != null) {
+                    return iconToRect;
+                }
+                return frameNodeToAlt(node, sParent);
             default:
                 return null;
         }
@@ -3134,9 +3136,9 @@ const convertGradient = (fills, framework) => {
 
 let parentId$1 = '';
 let showLayerName = false;
-let componentSet = new Set();
+let scriptSet = new Set();
 const tailwindMain = (sceneNode, parentIdSrc = '', isJsx = false, layerName = false) => {
-    componentSet = new Set();
+    scriptSet = new Set();
     parentId$1 = parentIdSrc;
     showLayerName = layerName;
     let result = tailwindWidgetGenerator(sceneNode, isJsx);
@@ -3145,15 +3147,16 @@ const tailwindMain = (sceneNode, parentIdSrc = '', isJsx = false, layerName = fa
         result = result.slice(1, result.length);
     }
     const scripts = [`<script>`];
-    if (componentSet.has('Button')) {
-        const ButtonScript = `import { Button } from '@/serverMiddleware/src/lib/Prediction'`;
-        scripts.push(ButtonScript);
+    if (scriptSet.has('Button')) {
+        scripts.push(`import { Button } from '@/serverMiddleware/src/lib/Prediction'`);
+    }
+    if (scriptSet.has('focusSection')) {
+        scripts.push(`import { focusSection, focusable } from '@/serverMiddleware/src/actions/spatial-navigation'`);
     }
     {
-        scripts.push(`import Keypad from '@/serverMiddleware/src/components/Keypad.svelte'
-		const handleSubmit = () => {}
-		const maxLength = 4
-		`);
+        scripts.push(`import Keypad from '@/serverMiddleware/src/components/Keypad.svelte'`);
+        scripts.push(`const handleSubmit = () => {}`);
+        scripts.push(`const maxLength = 4`);
     }
     scripts.push(`</script>\n\n`);
     return scripts.join('\n') + result;
@@ -3239,7 +3242,6 @@ const tailwindComponent = (node) => {
     return `\n<Keypad on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }} />`;
 };
 const tailwindInstance = (node) => {
-    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 166 ~ node', node);
     const tag = node.mainComponent.name;
     if (!tag) {
         return '';
@@ -3250,12 +3252,25 @@ const tailwindInstance = (node) => {
             attr = `on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }}`;
             break;
         case 'Button':
-            componentSet.add('Button');
-            const { action, trigger } = node.interactions[0];
-            // const build = builder.build(additionalAttr)
-            const option = action.type === 'SELECT' ? `'${action.option}'` : `''`;
-            const selection = `selection={${option}}`;
-            attr = `${selection} `;
+            scriptSet.add('Button');
+            let option = '';
+            if (node.interactions[0]) {
+                const { action, trigger } = node.interactions[0];
+                // const TRIGGER_MAP: Record<STrigger['type'], string> = {
+                // 	ON_CLICK: 'on:click',
+                // 	AFTER_TIMEOUT: '',
+                // 	MOUSE_DOWN: '',
+                // 	MOUSE_ENTER: '',
+                // 	MOUSE_LEAVE: '',
+                // 	MOUSE_UP: '',
+                // 	ON_DRAG: '',
+                // 	ON_HOVER: '',
+                // 	ON_PRESS: '',
+                // }
+                // const build = builder.build(additionalAttr)
+                option = action.type === 'SELECT' ? `${action.option}` : ``;
+            }
+            attr = `selection={'${option}'}`;
     }
     const childrenStr = tailwindWidgetGenerator(node.children, false);
     // ignore the view when size is zero or less
@@ -3335,11 +3350,17 @@ const tailwindContainer = (node, children, additionalAttr, attr, isJsx) => {
             tag = 'img';
             src = ` src="https://via.placeholder.com/${node.width}x${node.height}"`;
         }
+        let focusSection = '';
+        if (node.focusSection) {
+            scriptSet.add('focusSection');
+            focusSection = ` use:focusSection={${JSON.stringify(node.focusSection)}} `;
+        }
+        console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 314 ~ focusSection', focusSection);
         if (children) {
-            return `\n<${tag}${build}${src}>${indentString(children)}\n</${tag}>`;
+            return `\n<${tag}${focusSection}${build}${src} >${indentString(children)}\n</${tag}>`;
         }
         else {
-            return `\n<${tag}${build}${src}/>`;
+            return `\n<${tag}${focusSection}${build}${src} />`;
         }
     }
     return children;
@@ -3545,6 +3566,7 @@ figma.on('selectionchange', () => {
     const selection = figma.currentPage.selection;
     const isSingleSelection = selection.length === 1;
     if (isSingleSelection) {
+        //  Can use convertIntoSNodes to achieved better node structure
         switch (selection[0].type) {
             case 'INSTANCE':
                 const includeComponent = ['Button'];
@@ -3558,10 +3580,22 @@ figma.on('selectionchange', () => {
                     catch (error) {
                         pluginData = [];
                     }
-                    emit('pluginDataChange', node.id, pluginData);
-                    emit('selected', node);
+                    emit('selected', node, pluginData);
                 }
                 break;
+            case 'FRAME':
+                const node = convertSingleNodeToAlt(selection[0], null);
+                console.log('🇻🇳 ~ file: code.ts ~ line 95 ~ node', node);
+                let pluginData = [];
+                try {
+                    pluginData = JSON.parse(selection[0].getPluginData(selection[0].id));
+                }
+                catch (error) {
+                    pluginData = [];
+                }
+                console.log('🇻🇳 ~ file: code.ts ~ line 98 ~ pluginData', pluginData);
+                node.children = [];
+                emit('selected', node, pluginData);
         }
     }
     run();
@@ -3597,6 +3631,16 @@ on('createInteraction', (sSceneNode) => {
         // open: 'Open this trapezoid with Shaper',
         addOnClick: 'Add sigma interactions',
     });
+});
+on('createFocusSection', (sSceneNode) => {
+    const sFrameNode = sSceneNode;
+    const focusSection = {
+        default: true,
+    };
+    const node = figma.getNodeById(sFrameNode.id);
+    const pluginData = { focusSection };
+    node.setPluginData(node.id, JSON.stringify(pluginData));
+    emit('pluginDataChange', node.id, pluginData);
 });
 on('tailwind', (args) => {
     mode = 'tailwind';

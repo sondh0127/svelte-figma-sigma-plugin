@@ -53,3 +53,14 @@ export async function decode(canvas, ctx, bytes) {
 	const imageData = ctx.getImageData(0, 0, image.width, image.height)
 	return imageData
 }
+
+export const parseJSON = (opts, defaults) => {
+	if (opts !== null && typeof opts === 'object') return opts
+	defaults = defaults || null
+	try {
+		defaults = JSON.parse(opts)
+	} catch (e) {
+		console.log('Lỗi parse Json')
+	}
+	return defaults
+}

@@ -64,8 +64,16 @@ export const frameNodeToAlt = (
 	convertRectangleCorner(altNode, node)
 
 	altNode.children = convertIntoSNodes(node.children, altNode)
+	let focusSection = null
+	try {
+		focusSection = JSON.parse(node.getPluginData(node.id))['focusSection']
+	} catch (error) {
+		focusSection = null
+	}
 
-	return convertToAutoLayout(convertNodesOnRectangle(altNode))
+	return convertToAutoLayout(
+		convertNodesOnRectangle({ ...altNode, focusSection }),
+	)
 }
 
 // auto convert Frame to Rectangle when Frame has no Children
@@ -140,13 +148,6 @@ export const convertIntoSNodes = (
 				altNode.strokeWeight = altNode.strokeWeight - 1
 
 				return altNode
-			} else if (node.type === 'FRAME') {
-				const iconToRect = iconToRectangle(node, sParent)
-				if (iconToRect != null) {
-					return iconToRect
-				}
-
-				return frameNodeToAlt(node, sParent)
 			} else if (node.type === 'GROUP') {
 				if (node.children.length === 1 && node.visible !== false) {
 					// if Group is visible and has only one child, Group should disappear.
@@ -244,7 +245,13 @@ export const convertIntoSNodes = (
 					// convertDefaultShape(sNode, node)
 
 					return sNode
+				case 'FRAME':
+					const iconToRect = iconToRectangle(node, sParent)
+					if (iconToRect != null) {
+						return iconToRect
+					}
 
+					return frameNodeToAlt(node, sParent)
 				default:
 					return null
 			}

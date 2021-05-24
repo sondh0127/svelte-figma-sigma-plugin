@@ -4,9 +4,12 @@ import {
 	retrieveGenericSolidUIColors,
 } from './common/retrieveUI/retrieveColors'
 import { tailwindMain } from './tailwind/tailwindMain'
-import { convertIntoSNodes } from './altNodes/altConversion'
+import {
+	convertIntoSNodes,
+	convertSingleNodeToAlt,
+} from './altNodes/altConversion'
 import { clone } from './helper'
-import type { SInstanceNode } from './nodes/types'
+import type { SFrameNode, SInstanceNode } from './nodes/types'
 import { once, emit, on } from './utilities/events'
 import { createImagePaint } from './utilities/node/create-image-paint'
 import { pick } from './utilities/object/extract-attributes'
@@ -69,6 +72,7 @@ figma.on('selectionchange', () => {
 	const isSingleSelection = selection.length === 1
 
 	if (isSingleSelection) {
+		//  Can use convertIntoSNodes to achieved better node structure
 		switch (selection[0].type) {
 			case 'INSTANCE':
 				const includeComponent = ['Button']
@@ -83,12 +87,22 @@ figma.on('selectionchange', () => {
 						pluginData = []
 					}
 
-					emit('pluginDataChange', node.id, pluginData)
-
-					emit('selected', node)
+					emit('selected', node, pluginData)
 				}
 				break
+			case 'FRAME':
+				const node = convertSingleNodeToAlt(selection[0], null)
+				console.log('🇻🇳 ~ file: code.ts ~ line 95 ~ node', node)
 
+				let pluginData = []
+				try {
+					pluginData = JSON.parse(selection[0].getPluginData(selection[0].id))
+				} catch (error) {
+					pluginData = []
+				}
+				console.log('🇻🇳 ~ file: code.ts ~ line 98 ~ pluginData', pluginData)
+				node.children = []
+				emit('selected', node, pluginData)
 			default:
 				break
 		}
@@ -140,6 +154,20 @@ on('createInteraction', (sSceneNode) => {
 		// open: 'Open this trapezoid with Shaper',
 		addOnClick: 'Add sigma interactions',
 	})
+})
+
+on('createFocusSection', (sSceneNode) => {
+	const sFrameNode: SFrameNode = sSceneNode
+
+	const focusSection: SFrameNode['focusSection'] = {
+		default: true,
+	}
+
+	const node = figma.getNodeById(sFrameNode.id)
+
+	const pluginData = { focusSection }
+	node.setPluginData(node.id, JSON.stringify(pluginData))
+	emit('pluginDataChange', node.id, pluginData)
 })
 
 on('tailwind', (args) => {

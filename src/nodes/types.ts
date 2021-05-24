@@ -42,7 +42,7 @@ export interface PluginAPI {
 	createStar(): StarNode
 	createVector(): VectorNode
 	createText(): TextNode
-	createFrame(): FrameNode
+	createFrame(): SFrameNode
 	createComponent(): SComponentNode
 	createPage(): SPageNode
 	createSlice(): SliceNode
@@ -99,7 +99,7 @@ export interface PluginAPI {
 	loadFontAsync(fontName: FontName): Promise<void>
 	readonly hasMissingFont: boolean
 
-	createNodeFromSvg(svg: string): FrameNode
+	createNodeFromSvg(svg: string): SFrameNode
 
 	createImage(data: Uint8Array): Image
 	getImageByHash(hash: string): Image
@@ -767,9 +767,31 @@ interface SPageNode extends SBaseNodeMixin, SChildrenMixin, SExportMixin {
 		| null */
 }
 
-interface FrameNode extends SDefaultFrameMixin {
-	readonly type: 'FRAME'
-	clone(): FrameNode
+interface FocusSectionConfig {
+	straightOnly: boolean
+	straightOverlapThreshold: number
+	rememberSource: boolean
+	disabled: boolean
+	defaultElement: string
+	enterTo: string
+	leaveFor: string | null
+	restrict: string
+	tabIndexIgnoreList: string
+	navigableFilter: string | null
+	scrollOptions: { behavior: string; block: string }
+}
+
+interface SFocusSectionMixin {
+	focusSection: {
+		config?: FocusSectionConfig
+		id?: string
+		default?: boolean
+	}
+}
+
+export interface SFrameNode extends SDefaultFrameMixin, SFocusSectionMixin {
+	type: 'FRAME'
+	// clone(): SFrameNode
 }
 
 interface GroupNode
@@ -937,7 +959,7 @@ export type SBaseNode = SDocumentNode | SPageNode | SSceneNode
 
 export type SSceneNode =
 	| SliceNode
-	| FrameNode
+	| SFrameNode
 	| GroupNode
 	| ComponentSetNode
 	| SComponentNode

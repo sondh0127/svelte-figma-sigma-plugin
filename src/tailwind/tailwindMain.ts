@@ -19,7 +19,7 @@ import type { SInstanceNode, SInteraction, STrigger } from '../nodes/types'
 let parentId = ''
 let showLayerName = false
 
-let componentSet = new Set()
+let scriptSet = new Set()
 
 export const tailwindMain = (
 	sceneNode: Array<AltSceneNode>,
@@ -27,7 +27,7 @@ export const tailwindMain = (
 	isJsx: boolean = false,
 	layerName: boolean = false,
 ): string => {
-	componentSet = new Set()
+	scriptSet = new Set()
 	parentId = parentIdSrc
 	showLayerName = layerName
 	const hasKeypad = true
@@ -40,16 +40,23 @@ export const tailwindMain = (
 	}
 
 	const scripts = [`<script>`]
-	if (componentSet.has('Button')) {
-		const ButtonScript = `import { Button } from '@/serverMiddleware/src/lib/Prediction'`
-		scripts.push(ButtonScript)
+	if (scriptSet.has('Button')) {
+		scripts.push(
+			`import { Button } from '@/serverMiddleware/src/lib/Prediction'`,
+		)
+	}
+	if (scriptSet.has('focusSection')) {
+		scripts.push(
+			`import { focusSection, focusable } from '@/serverMiddleware/src/actions/spatial-navigation'`,
+		)
 	}
 
 	if (hasKeypad) {
-		scripts.push(`import Keypad from '@/serverMiddleware/src/components/Keypad.svelte'
-		const handleSubmit = () => {}
-		const maxLength = 4
-		`)
+		scripts.push(
+			`import Keypad from '@/serverMiddleware/src/components/Keypad.svelte'`,
+		)
+		scripts.push(`const handleSubmit = () => {}`)
+		scripts.push(`const maxLength = 4`)
 	}
 
 	scripts.push(`</script>\n\n`)
@@ -166,8 +173,8 @@ const tailwindComponent = (
 }
 
 const tailwindInstance = (node: SInstanceNode): string => {
-	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 166 ~ node', node)
 	const tag = node.mainComponent.name
+
 	if (!tag) {
 		return ''
 	}
@@ -178,25 +185,26 @@ const tailwindInstance = (node: SInstanceNode): string => {
 			attr = `on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }}`
 			break
 		case 'Button':
-			componentSet.add('Button')
-			const { action, trigger } = node.interactions[0] as SInteraction
-			const TRIGGER_MAP: Record<STrigger['type'], string> = {
-				ON_CLICK: 'on:click',
-				AFTER_TIMEOUT: '',
-				MOUSE_DOWN: '',
-				MOUSE_ENTER: '',
-				MOUSE_LEAVE: '',
-				MOUSE_UP: '',
-				ON_DRAG: '',
-				ON_HOVER: '',
-				ON_PRESS: '',
+			scriptSet.add('Button')
+			let option = ''
+			if (node.interactions[0]) {
+				const { action, trigger } = node.interactions[0] as SInteraction
+				// const TRIGGER_MAP: Record<STrigger['type'], string> = {
+				// 	ON_CLICK: 'on:click',
+				// 	AFTER_TIMEOUT: '',
+				// 	MOUSE_DOWN: '',
+				// 	MOUSE_ENTER: '',
+				// 	MOUSE_LEAVE: '',
+				// 	MOUSE_UP: '',
+				// 	ON_DRAG: '',
+				// 	ON_HOVER: '',
+				// 	ON_PRESS: '',
+				// }
+				// const build = builder.build(additionalAttr)
+				option = action.type === 'SELECT' ? `${action.option}` : ``
 			}
+			attr = `selection={'${option}'}`
 
-			// const build = builder.build(additionalAttr)
-			const option = action.type === 'SELECT' ? `'${action.option}'` : `''`
-			const selection = `selection={${option}}`
-
-			attr = `${selection} `
 		default:
 			break
 	}
@@ -321,11 +329,23 @@ export const tailwindContainer = (
 			tag = 'img'
 			src = ` src="https://via.placeholder.com/${node.width}x${node.height}"`
 		}
+		let focusSection = ''
+		if (node.focusSection) {
+			scriptSet.add('focusSection')
+			focusSection = ` use:focusSection={${JSON.stringify(node.focusSection)}} `
+		}
+
+		console.log(
+			'🇻🇳 ~ file: tailwindMain.ts ~ line 314 ~ focusSection',
+			focusSection,
+		)
 
 		if (children) {
-			return `\n<${tag}${build}${src}>${indentString(children)}\n</${tag}>`
+			return `\n<${tag}${focusSection}${build}${src} >${indentString(
+				children,
+			)}\n</${tag}>`
 		} else {
-			return `\n<${tag}${build}${src}/>`
+			return `\n<${tag}${focusSection}${build}${src} />`
 		}
 	}
 

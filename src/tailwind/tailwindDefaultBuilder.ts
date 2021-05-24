@@ -133,15 +133,12 @@ export class TailwindDefaultBuilder {
 		// or current element is one of the absoltue children and has a width or height > w/h-64
 
 		if ('isRelative' in node && node.isRelative === true) {
-			console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 1')
 			this.style += htmlSizeForTailwind(node, this.isJSX)
 		} else if (
 			node.parent?.isRelative === true ||
 			node.width > 384 ||
 			node.height > 384
 		) {
-			console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2')
-
 			// to avoid mixing html and tailwind sizing too much, only use html sizing when absolutely necessary.
 			// therefore, if only one attribute is larger than 256, only use the html size in there.
 			const [tailwindWidth, tailwindHeight] = tailwindSizePartial(node)
@@ -149,20 +146,12 @@ export class TailwindDefaultBuilder {
 				node,
 				this.isJSX,
 			)
-			console.log(
-				'🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 149 ~ htmlWidth, htmlHeight',
-				htmlWidth,
-				htmlHeight,
-			)
 
 			// when textAutoResize is NONE or WIDTH_AND_HEIGHT, it has a defined width.
 			if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
-				console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.1')
 				if (node.width > 384) {
-					console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.1.1')
 					this.attributes += htmlWidth
 				} else {
-					console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.1.2')
 					this.attributes += tailwindWidth
 				}
 
@@ -171,15 +160,10 @@ export class TailwindDefaultBuilder {
 
 			// when textAutoResize is NONE has a defined height.
 			if (node.type !== 'TEXT' || node.textAutoResize === 'NONE') {
-				console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.2')
-
 				if (node.width > 384) {
-					console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.2.1')
 					// this.style += htmlHeight
 					this.attributes += htmlHeight
 				} else {
-					console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 2.2.2')
-
 					this.attributes += tailwindHeight
 				}
 
@@ -187,17 +171,14 @@ export class TailwindDefaultBuilder {
 			}
 		} else {
 			const partial = tailwindSizePartial(node)
-			console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 3')
 
 			// Width
 			if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
-				console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 3.1')
 				this.attributes += partial[0]
 			}
 
 			// Height
 			if (node.type !== 'TEXT' || node.textAutoResize === 'NONE') {
-				console.log('🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 3.2')
 				this.attributes += partial[1]
 			}
 
@@ -230,10 +211,6 @@ export class TailwindDefaultBuilder {
 			if (this.isJSX) {
 				this.style = ` style={{${this.style}}}`
 			} else {
-				console.log(
-					'🇻🇳 ~ file: tailwindDefaultBuilder.ts ~ line 214 ~ this.style',
-					this.style,
-				)
 				this.style = ` style="${this.style}"`
 			}
 		}

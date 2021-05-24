@@ -4,7 +4,7 @@
 	import SectionGradient from './GenericGradientSection.svelte'
 	import SectionSolid from './GenericSolidColorSection.svelte'
 	import imageKeypad from '../assets/Keypad.png'
-	import type { SInstanceNode, SSceneNode } from '../nodes/types'
+	import type { SFrameNode, SInstanceNode, SSceneNode } from '../nodes/types'
 
 	import Prism from 'svelte-prism'
 	import 'prism-theme-night-owl'
@@ -16,17 +16,25 @@
 
 	let sSceneNode: SSceneNode | null = null
 
-	let pluginData = {}
+	const pluginData = writable({})
+	$: console.log(
+		'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 22 ~ pluginData',
+		$pluginData,
+	)
 
 	$: textObservable = textData
 	$: codeObservable = codeData
 
 	$: interactions = (
-		sSceneNode ? pluginData[sSceneNode.id]?.interactions || [] : []
+		sSceneNode ? $pluginData[sSceneNode.id]?.interactions || [] : []
 	) as SInstanceNode['interactions']
 
+	$: focusSection = (
+		sSceneNode ? $pluginData[sSceneNode.id]?.focusSection : null
+	) as SFrameNode['focusSection']
+
 	$: if (sSceneNode) {
-		emit('pluginDataChange', sSceneNode.id, pluginData[sSceneNode.id])
+		emit('pluginDataChange', sSceneNode.id, $pluginData[sSceneNode.id])
 	}
 
 	if (false) {
@@ -56,20 +64,21 @@
 `
 	}
 
-	on('pluginDataChange', (id, value) => {
-		pluginData[id] = value
-	})
-
 	on('selectionchange', () => {
 		sSceneNode = null
 	})
 
-	on('selected', (_sSceneNode) => {
-		console.log(
-			'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 59 ~ _sSceneNode',
-			_sSceneNode,
-		)
+	on('pluginDataChange', (id, data) => {
+		pluginData.update((_pluginData) => {
+			_pluginData[id] = Object.assign(_pluginData[id], data)
+
+			return _pluginData
+		})
+	})
+
+	on('selected', (_sSceneNode, nodePluginData) => {
 		sSceneNode = _sSceneNode
+		$pluginData[_sSceneNode.id] = nodePluginData
 	})
 
 	on('empty', (args) => {
@@ -113,6 +122,7 @@
 	import { encode } from '../helper'
 	import { emit, on } from '../utilities/events'
 	import Input from '../components/figma-plugin-ds-svelte/Input.svelte'
+	import { writable } from 'svelte/store'
 
 	onMount(async () => {
 		/* 		const canvas = document.createElement('canvas')
@@ -141,10 +151,6 @@
 
 	const sectionStyle = 'border rounded-lg bg-white'
 
-	function postMessage(msg: any) {
-		parent.postMessage({ pluginMessage: msg }, '*')
-	}
-
 	function createKeypad() {
 		console.log('🇻🇳 ~ file: ScreenTailwind.svelte ~ line 239 ~ click')
 		emit('createInstance', {})
@@ -152,6 +158,26 @@
 
 	function handleAdd() {
 		emit('createInteraction', sSceneNode)
+	}
+
+	function resetPluginData() {
+		delete $pluginData[sSceneNode.id]
+	}
+
+	function addFocusSection() {
+		const focusSection = {
+			id: sSceneNode.id,
+		}
+
+		const hasDefault = Object.values($pluginData).some(
+			(item) => item.focusSection,
+		)
+
+		if (!hasDefault) {
+			focusSection.default = true
+		}
+
+		$pluginData[sSceneNode.id] = { focusSection }
 	}
 </script>
 
@@ -232,6 +258,7 @@
 		</TabControlItem>
 		<TabControlItem id="2" payload="Component">
 			<Button on:click={createKeypad}>Create Keypad</Button>
+			<Button on:click={resetPluginData}>Reset</Button>
 			{#if sSceneNode?.type === 'INSTANCE'}
 				<div class="flex flex-col">
 					<div class="flex">
@@ -248,6 +275,33 @@
 							{/if}
 						</div>
 					{/each}
+				</div>
+			{/if}
+
+			{#if sSceneNode?.type === 'FRAME'}
+				<div class="flex flex-col">
+					<div class="flex">
+						<Label>FRAME</Label>
+						<Button on:click={addFocusSection}>Add focus section</Button>
+					</div>
+
+					{#if focusSection}
+						<div class="flex items-center justify-between">
+							<Label>
+								<span>default:</span>
+								<span>
+									{focusSection.default === true}
+								</span>
+							</Label>
+							<Button
+								on:click={() => {
+									$pluginData[sSceneNode.id] = {}
+								}}
+							>
+								Remove
+							</Button>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</TabControlItem>
