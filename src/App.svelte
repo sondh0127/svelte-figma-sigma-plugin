@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte'
 	import ScreenTailwind from './screens/ScreenTailwind.svelte'
 	import copy from 'clipboard-copy'
 	function delay(ms) {
@@ -15,6 +16,7 @@
 	}
 
 	import { setup, disconnect } from 'twind/shim'
+	import { emit } from './utilities/events'
 	setup({
 		preflight: false,
 		theme: {
@@ -83,6 +85,10 @@
 				none: 'none',
 			},
 		},
+	})
+
+	onMount(() => {
+		emit('mount')
 	})
 </script>
 

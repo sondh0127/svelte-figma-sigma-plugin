@@ -1,17 +1,18 @@
-import {
-	AltRectangleNode,
-	AltFrameNode,
-	AltGroupNode,
-	AltSceneNode,
-} from './altMixins'
+import type {
+	SFrameNode,
+	SGroupNode,
+	SRectangleNode,
+	SSceneNode,
+} from '../nodes/types'
+
 import { convertToAutoLayout } from './convertToAutoLayout'
 
 /**
  * Identify all nodes that are inside Rectangles and transform those Rectangles into Frames containing those nodes.
  */
 export const convertNodesOnRectangle = (
-	node: AltFrameNode | AltGroupNode,
-): AltFrameNode | AltGroupNode => {
+	node: SFrameNode | SGroupNode,
+): SFrameNode | SGroupNode => {
 	if (node.children.length < 2) {
 		return node
 	}
@@ -25,13 +26,11 @@ export const convertNodesOnRectangle = (
 
 	const parentsKeys = Object.keys(colliding)
 	// start with all children. This is going to be filtered.
-	let updatedChildren: Array<AltSceneNode> = [...node.children]
+	let updatedChildren: Array<SSceneNode> = [...node.children]
 
 	parentsKeys.forEach((key) => {
 		// dangerous cast, but this is always true
-		const parentNode = node.children.find(
-			(d) => d.id === key,
-		) as AltRectangleNode
+		const parentNode = node.children.find((d) => d.id === key) as SRectangleNode
 
 		// retrieve the position. Key should always be at the left side, so even when other items are removed, the index is kept the same.
 		const indexPosition = updatedChildren.findIndex((d) => d.id === key)
@@ -66,11 +65,13 @@ export const convertNodesOnRectangle = (
 	return node
 }
 
-const convertRectangleToFrame = (rect: AltRectangleNode) => {
+const convertRectangleToFrame = (rect: SRectangleNode) => {
 	// if a Rect with elements inside were identified, extract this Rect
 	// outer methods are going to use it.
 
-	const frameNode = new AltFrameNode()
+	const frameNode: SFrameNode = {
+		type: 'FRAME',
+	}
 
 	frameNode.parent = rect.parent
 
@@ -127,10 +128,10 @@ const convertRectangleToFrame = (rect: AltRectangleNode) => {
  * A Node can only have a single parent. The order is defined by layer order.
  */
 const retrieveCollidingItems = (
-	children: ReadonlyArray<AltSceneNode>,
-): Record<string, Array<AltSceneNode>> => {
+	children: Array<SSceneNode>,
+): Record<string, Array<SSceneNode>> => {
 	const used: Record<string, boolean> = {}
-	const groups: Record<string, Array<AltSceneNode>> = {}
+	const groups: Record<string, Array<SSceneNode>> = {}
 
 	for (let i = 0; i < children.length - 1; i++) {
 		const item1 = children[i]

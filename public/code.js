@@ -335,21 +335,6 @@ const retrieveTopFill = (fills) => {
     }
 };
 
-const rgbTo6hex = (color) => {
-    const hex = ((color.r * 255) | (1 << 8)).toString(16).slice(1) +
-        ((color.g * 255) | (1 << 8)).toString(16).slice(1) +
-        ((color.b * 255) | (1 << 8)).toString(16).slice(1);
-    return hex;
-};
-const rgbTo8hex = (color, alpha) => {
-    // when color is RGBA, alpha is set automatically
-    // when color is RGB, alpha need to be set manually (default: 1.0)
-    const hex = ((alpha * 255) | (1 << 8)).toString(16).slice(1) +
-        ((color.r * 255) | (1 << 8)).toString(16).slice(1) +
-        ((color.g * 255) | (1 << 8)).toString(16).slice(1) +
-        ((color.b * 255) | (1 << 8)).toString(16).slice(1);
-    return hex;
-};
 const gradientAngle = (fill) => {
     // Thanks Gleb and Liam for helping!
     const decomposed = decomposeRelativeTransform(fill.gradientTransform[0], fill.gradientTransform[1]);
@@ -433,7 +418,7 @@ const tailwindGradientFromFills = (fills) => {
     return '';
 };
 const tailwindGradient = (fill) => {
-    const direction = gradientDirection$2(gradientAngle(fill));
+    const direction = gradientDirection(gradientAngle(fill));
     if (fill.gradientStops.length === 1) {
         const fromColor = getTailwindFromFigmaRGB(fill.gradientStops[0].color);
         return `${direction} from-${fromColor} `;
@@ -452,7 +437,7 @@ const tailwindGradient = (fill) => {
         return `${direction} from-${fromColor} via-${viaColor} to-${toColor} `;
     }
 };
-const gradientDirection$2 = (angle) => {
+const gradientDirection = (angle) => {
     switch (nearestValue(angle, [-180, -135, -90, -45, 0, 45, 90, 135, 180])) {
         case 0:
             return 'bg-gradient-to-r';
@@ -1185,7 +1170,6 @@ const tailwindSizePartial = (node) => {
         }
     }
     let h = '';
-    // console.log("sizeResults is ", sizeResult, node);
     if (typeof size.height === 'number') {
         h = `h-${pxToLayoutSize(size.height)} `;
     }
@@ -1644,316 +1628,6 @@ class TailwindTextBuilder extends TailwindDefaultBuilder {
     }
 }
 
-// Convert generic named weights to numbers, which is the way tailwind understands
-const convertFontWeight = (weight) => {
-    // change extra-light to extralight
-    weight = weight.replace(' ', '').replace('-', '').toLowerCase();
-    switch (weight) {
-        case 'thin':
-            return '100';
-        case 'extralight':
-            return '200';
-        case 'light':
-            return '300';
-        case 'regular':
-            return '400';
-        case 'medium':
-            return '500';
-        case 'semibold':
-            return '600';
-        case 'bold':
-            return '700';
-        case 'extrabold':
-            return '800';
-        case 'heavy':
-            return '800';
-        case 'black':
-            return '900';
-        default:
-            return null;
-    }
-};
-
-const retrieveTailwindText = (sceneNode) => {
-    // convert to AltNode and then flatten it. Conversion is necessary because of [tailwindText]
-    const selectedText = deepFlatten$1(sceneNode);
-    const textStr = [];
-    selectedText.forEach((node) => {
-        var _a, _b;
-        if (node.type === 'TEXT') {
-            const attr = new TailwindTextBuilder(node, false, false)
-                .blend(node)
-                .position(node, (_b = (_a = node.parent) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : '')
-                .textAutoSize(node)
-                .fontSize(node)
-                .fontStyle(node)
-                .letterSpacing(node)
-                .lineHeight(node)
-                .textDecoration(node)
-                .textAlign(node)
-                .customColor(node.fills, 'text')
-                .textTransform(node)
-                .removeTrailingSpace();
-            const splittedChars = node.characters.split('\n');
-            const charsWithLineBreak = splittedChars.length > 1
-                ? node.characters.split('\n').join('<br/>')
-                : node.characters;
-            const black = {
-                r: 0,
-                g: 0,
-                b: 0,
-            };
-            let contrastBlack = 21;
-            const fill = retrieveTopFill(node.fills);
-            if ((fill === null || fill === void 0 ? void 0 : fill.type) === 'SOLID') {
-                contrastBlack = calculateContrastRatio$1(fill.color, black);
-            }
-            textStr.push({
-                name: node.name,
-                attr: attr.attributes,
-                full: `<p class="${attr.attributes}">${charsWithLineBreak}</p>`,
-                style: style(node),
-                contrastBlack: contrastBlack,
-            });
-        }
-    });
-    // retrieve only unique texts (attr + name)
-    // from https://stackoverflow.com/a/18923480/4418073
-    const unique = {};
-    const distinct = [];
-    textStr.forEach(function (x) {
-        if (!unique[x.attr + x.name]) {
-            distinct.push(x);
-            unique[x.attr + x.name] = true;
-        }
-    });
-    return distinct;
-};
-const style = (node) => {
-    let comp = '';
-    if (node.fontName !== figma.mixed) {
-        const lowercaseStyle = node.fontName.style.toLowerCase();
-        if (lowercaseStyle.match('italic')) {
-            comp += 'font-style: italic; ';
-        }
-        const value = node.fontName.style
-            .replace('italic', '')
-            .replace(' ', '')
-            .toLowerCase();
-        const weight = convertFontWeight(value);
-        if (weight) {
-            comp += `font-weight: ${weight}; `;
-        }
-    }
-    if (node.fontSize !== figma.mixed) {
-        comp += `font-size: ${Math.min(node.fontSize, 24)}; `;
-    }
-    const color = convertColor(node.fills);
-    if (color) {
-        comp += `color: ${color}; `;
-    }
-    return comp;
-};
-function deepFlatten$1(arr) {
-    let result = [];
-    arr.forEach((d) => {
-        if ('children' in d) {
-            result = result.concat(deepFlatten$1([...d.children]));
-        }
-        else {
-            if (d.type === 'TEXT') {
-                result.push(d);
-            }
-        }
-    });
-    return result;
-}
-const convertColor = (fills) => {
-    // kind can be text, bg, border...
-    // [when testing] fills can be undefined
-    const fill = retrieveTopFill(fills);
-    if ((fill === null || fill === void 0 ? void 0 : fill.type) === 'SOLID') {
-        return tailwindNearestColor(rgbTo6hex(fill.color));
-    }
-    return undefined;
-};
-// from https://dev.to/alvaromontoro/building-your-own-color-contrast-checker-4j7o
-function calculateContrastRatio$1(color1, color2) {
-    const color1luminance = luminance$1(color1);
-    const color2luminance = luminance$1(color2);
-    const contrast = color1luminance > color2luminance
-        ? (color2luminance + 0.05) / (color1luminance + 0.05)
-        : (color1luminance + 0.05) / (color2luminance + 0.05);
-    return 1 / contrast;
-}
-function luminance$1(color) {
-    const a = [color.r * 255, color.g * 255, color.b * 255].map(function (v) {
-        v /= 255;
-        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    });
-    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
-}
-
-const swiftuiGradient = (fill) => {
-    const direction = gradientDirection$1(gradientAngle(fill));
-    const colors = fill.gradientStops
-        .map((d) => {
-        return swiftuiColor(d.color, d.color.a);
-    })
-        .join(', ');
-    return `LinearGradient(gradient: Gradient(colors: [${colors}]), ${direction})`;
-};
-const gradientDirection$1 = (angle) => {
-    switch (nearestValue(angle, [-180, -135, -90, -45, 0, 45, 90, 135, 180])) {
-        case 0:
-            return 'startPoint: .leading, endPoint: .trailing';
-        case 45:
-            return 'startPoint: .topLeading, endPoint: .bottomTrailing';
-        case 90:
-            return 'startPoint: .top, endPoint: .bottom';
-        case 135:
-            return 'startPoint: .topTrailing, endPoint: .bottomLeading';
-        case -45:
-            return 'startPoint: .bottomLeading, endPoint: .topTrailing';
-        case -90:
-            return 'startPoint: .bottom, endPoint: .top';
-        case -135:
-            return 'startPoint: .bottomTrailing, endPoint: .topLeading';
-        default:
-            // 180 and -180
-            return 'startPoint: .trailing, endPoint: .leading';
-    }
-};
-const swiftuiColor = (color, opacity) => {
-    // Using Color.black.opacity() is not reccomended, as per:
-    // https://stackoverflow.com/a/56824114/4418073
-    // Therefore, only use Color.black/white when opacity is 1.
-    if (color.r + color.g + color.b === 0 && opacity === 1) {
-        return 'Color.black';
-    }
-    if (color.r + color.g + color.b === 3 && opacity === 1) {
-        return 'Color.white';
-    }
-    const r = 'red: ' + numToAutoFixed(color.r);
-    const g = 'green: ' + numToAutoFixed(color.g);
-    const b = 'blue: ' + numToAutoFixed(color.b);
-    const opacityAttr = opacity !== 1.0 ? `, opacity: ${numToAutoFixed(opacity)}` : '';
-    return `Color(${r}, ${g}, ${b}${opacityAttr})`;
-};
-
-const flutterGradient = (fill) => {
-    const direction = gradientDirection(gradientAngle(fill));
-    const colors = fill.gradientStops
-        .map((d) => {
-        return flutterColor(d.color, d.color.a);
-    })
-        .join(', ');
-    return `LinearGradient(${direction}, colors: [${colors}], )`;
-};
-const gradientDirection = (angle) => {
-    switch (nearestValue(angle, [-180, -135, -90, -45, 0, 45, 90, 135, 180])) {
-        case 0:
-            return 'begin: Alignment.centerLeft, end: Alignment.centerRight';
-        case 45:
-            return 'begin: Alignment.topLeft, end: Alignment.bottomRight';
-        case 90:
-            return 'begin: Alignment.topCenter, end: Alignment.bottomCenter';
-        case 135:
-            return 'begin: Alignment.topRight, end: Alignment.bottomLeft';
-        case -45:
-            return 'begin: Alignment.bottomLeft, end: Alignment.topRight';
-        case -90:
-            return 'begin: Alignment.bottomCenter, end: Alignment.topCenter';
-        case -135:
-            return 'begin: Alignment.bottomRight, end: Alignment.topLeft';
-        default:
-            // 180 and -180
-            return 'begin: Alignment.centerRight, end: Alignment.centerLeft';
-    }
-};
-const flutterColor = (color, opacity) => {
-    // todo use Colors.black.opacity()
-    if (color.r + color.g + color.b === 0 && opacity === 1) {
-        return 'Colors.black';
-    }
-    if (color.r + color.g + color.b === 3 && opacity === 1) {
-        return 'Colors.white';
-    }
-    return `Color(0x${rgbTo8hex(color, opacity)})`;
-};
-
-const htmlColor = (color, alpha = 1) => {
-    const r = numToAutoFixed(color.r * 255);
-    const g = numToAutoFixed(color.g * 255);
-    const b = numToAutoFixed(color.b * 255);
-    const a = numToAutoFixed(alpha !== null && alpha !== void 0 ? alpha : 1);
-    if (color.r === 1 && color.g === 1 && color.b === 1 && alpha === 1) {
-        return 'white';
-    }
-    if (color.r === 0 && color.g === 0 && color.b === 0 && alpha === 1) {
-        return 'black';
-    }
-    return `rgba(${r}, ${g}, ${b}, ${a})`;
-};
-// This was separated from htmlGradient because it is going to be used in the plugin UI and it wants all gradients, not only the top one.
-const htmlGradient = (fill) => {
-    // add 90 to be correct in HTML.
-    const angle = (gradientAngle(fill) + 90).toFixed(0);
-    const mappedFill = fill.gradientStops
-        .map((d) => {
-        // only add position to fractional
-        const position = d.position > 0 && d.position < 1
-            ? ' ' + (100 * d.position).toFixed(0) + '%'
-            : '';
-        return `${htmlColor(d.color, d.color.a)}${position}`;
-    })
-        .join(', ');
-    return `linear-gradient(${angle}deg, ${mappedFill})`;
-};
-
-class AltRectangleNode {
-    constructor() {
-        this.type = 'RECTANGLE';
-    }
-}
-class AltEllipseNode {
-    constructor() {
-        this.type = 'ELLIPSE';
-    }
-}
-class AltFrameNode {
-    constructor() {
-        this.type = 'FRAME';
-    }
-}
-class AltGroupNode {
-    constructor() {
-        this.type = 'GROUP';
-    }
-}
-class AltTextNode {
-    constructor() {
-        this.type = 'TEXT';
-    }
-}
-// // DOCUMENT
-// class AltDocumentNode {
-//   type = "DOCUMENT";
-//   children = [];
-// }
-// // PAGE
-// class AltPageNode {
-//   type = "PAGE";
-//   children = [];
-//   _selection: Array<SceneNode> = [];
-//   get selection() {
-//     return this._selection || [];
-//   }
-//   set selection(value) {
-//     this._selection = value;
-//   }
-// }
-
 // From https://github.com/sindresorhus/indent-string
 const indentString = (str, indentLevel = 1) => {
     // const options = {
@@ -1972,7 +1646,9 @@ const mostFrequent = (arr) => {
 };
 
 const convertGroupToFrame = (node) => {
-    const newNode = new AltFrameNode();
+    const newNode = {
+        type: 'FRAME',
+    };
     newNode.id = node.id;
     newNode.name = node.name;
     newNode.x = node.x;
@@ -2069,11 +1745,11 @@ const convertToAutoLayout = (node) => {
         node.paddingRight = Math.max(padding.right, 0);
         // set children to INHERIT or STRETCH
         node.children.map((d) => {
-            // @ts-ignore current node can't be AltGroupNode because it was converted into AltFrameNode
+            // @ts-ignore current node can't be SGroupNode because it was converted into SFrameNode
             layoutAlignInChild(d, node);
         });
         const allChildrenDirection = node.children.map((d) => 
-        // @ts-ignore current node can't be AltGroupNode because it was converted into AltFrameNode
+        // @ts-ignore current node can't be SGroupNode because it was converted into SFrameNode
         primaryAxisDirection(d, node));
         const primaryDirection = allChildrenDirection.map((d) => d.primary);
         const counterDirection = allChildrenDirection.map((d) => d.counter);
@@ -2310,7 +1986,9 @@ const convertNodesOnRectangle = (node) => {
 const convertRectangleToFrame = (rect) => {
     // if a Rect with elements inside were identified, extract this Rect
     // outer methods are going to use it.
-    const frameNode = new AltFrameNode();
+    const frameNode = {
+        type: 'FRAME',
+    };
     frameNode.parent = rect.parent;
     frameNode.width = rect.width;
     frameNode.height = rect.height;
@@ -2384,25 +2062,6 @@ const retrieveCollidingItems = (children) => {
 };
 
 /**
- * Extracts the specified list of `attributes` from the given `array` of
- * plain objects.
- *
- * @returns Returns an array of plain objects.
- * @category Object
- */
-function pick(object, keys) {
-    const result = {};
-    for (const key of keys) {
-        const value = object[key];
-        if (typeof value === 'undefined') {
-            throw new Error(`Key \`${key}\` does not exist on \`object\``);
-        }
-        result[key] = value;
-    }
-    return result;
-}
-
-/**
  * Returns the `x` and `y` position of the given `node` relative to the page.
  *
  * @category Node
@@ -2446,6 +2105,25 @@ function computeBoundingBox(node) {
     const { width, height } = group;
     parentNode.insertChild(index, node);
     return Object.assign(Object.assign({}, absolutePosition), { height, width });
+}
+
+/**
+ * Extracts the specified list of `attributes` from the given `array` of
+ * plain objects.
+ *
+ * @returns Returns an array of plain objects.
+ * @category Object
+ */
+function pick(object, keys) {
+    const result = {};
+    for (const key of keys) {
+        const value = object[key];
+        if (typeof value === 'undefined') {
+            throw new Error(`Key \`${key}\` does not exist on \`object\``);
+        }
+        result[key] = value;
+    }
+    return result;
 }
 
 /**
@@ -2494,10 +2172,8 @@ const convertSLayout = (node) => {
     ]));
     if (node.rotation !== undefined && Math.round(node.rotation) !== 0) {
         const boundingRect = getBoundingRect(node);
-        console.log('🇻🇳 ~ file: sConversion.ts ~ line 35 ~ boundingRect', boundingRect);
         // TODO: place getBoundingRect with  computeBoundingBox
-        const boundingRect2 = computeBoundingBox(node);
-        console.log('🇻🇳 ~ file: sConversion.ts ~ line 35 ~ boundingRect2', boundingRect2);
+        computeBoundingBox(node);
         sLayoutNode.x = boundingRect.x;
         sLayoutNode.y = boundingRect.y;
     }
@@ -2553,13 +2229,13 @@ const convertSRectangleCorner = (node) => {
 const convertSConstraint = (node) => {
     return Object.assign({}, pick(node, ['constraints']));
 };
-const convertSBaseNode = (node) => {
+const convertSBase = (node) => {
     return Object.assign(Object.assign({}, pick(node, ['id', 'name'])), { parent: null });
 };
 const convertSBaseFrame = (node) => {
     const layoutGrids = cloneObject(node.layoutGrids);
     const guides = cloneObject(node.guides);
-    const baseFrameNode = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, convertSScene(node)), convertSBaseNode(node)), { children: [] }), convertSContainer(node)), convertSGeometry(node)), convertSRectangleCorner(node)), convertSCorner(node)), convertSBlend(node)), convertSConstraint(node)), convertSLayout(node)), pick(node, [
+    const baseFrameNode = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, convertSScene(node)), convertSBase(node)), { children: [] }), convertSContainer(node)), convertSGeometry(node)), convertSRectangleCorner(node)), convertSCorner(node)), convertSBlend(node)), convertSConstraint(node)), convertSLayout(node)), convertSExport(node)), pick(node, [
         'layoutMode',
         'primaryAxisSizingMode',
         'counterAxisSizingMode',
@@ -2582,175 +2258,211 @@ const convertSBaseFrame = (node) => {
     }
     return baseFrameNode;
 };
+const convertSReaction = (node) => {
+    const reactions = cloneObject(node.reactions);
+    return {
+        reactions,
+    };
+};
+const convertSDefaultFrame = (node) => {
+    cloneObject(node.reactions);
+    return Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, [
+        'overflowDirection',
+        'numberOfFixedChildren',
+        'overlayPositionType',
+        'overlayBackground',
+        'overlayBackgroundInteraction',
+    ])), convertSReaction(node));
+};
 const convertSScene = (node) => {
     return Object.assign({}, pick(node, ['locked', 'visible']));
 };
+const convertSExport = (node) => {
+    const exportSettings = cloneObject(node.exportSettings);
+    return {
+        exportSettings,
+    };
+};
+const convertSDefaultShape = (node) => {
+    const reactions = cloneObject(node.reactions);
+    return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, pick(node, [])), convertSBase(node)), convertSScene(node)), { reactions }), convertSBlend(node)), convertSGeometry(node)), convertSLayout(node)), convertSExport(node));
+};
 // Nodes Conversion
 const convertIntoSComponent = (node) => {
-    const interactions = [];
-    return Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, ['type', 'remote', 'key'])), { interactions });
+    const documentationLinks = cloneObject(node.documentationLinks);
+    return Object.assign(Object.assign(Object.assign({}, convertSDefaultFrame(node)), pick(node, ['type', 'remote', 'key', 'description'])), { documentationLinks });
 };
 const convertIntoSInstance = (node) => {
     let interactions = [];
+    const includeComponents = ['Button'];
+    const mainComponentName = node.mainComponent.name;
+    if (includeComponents.includes(mainComponentName)) {
+        try {
+            interactions = JSON.parse(node.getPluginData('interactions'));
+        }
+        catch (error) {
+            interactions = [];
+        }
+    }
+    return Object.assign(Object.assign(Object.assign({}, convertSDefaultFrame(node)), pick(node, ['type'])), { interactions, mainComponent: convertIntoSComponent(node.mainComponent) });
+};
+const convertIntoSFrame = (node) => {
+    let focusSection = {};
     try {
-        JSON.parse(node.getPluginData(node.id))['interactions'];
+        focusSection = JSON.parse(node.getPluginData('focusSection'));
     }
     catch (error) {
-        interactions = [];
+        focusSection = {};
     }
-    return convertToAutoLayout(Object.assign(Object.assign(Object.assign({}, convertSBaseFrame(node)), pick(node, ['type'])), { interactions, mainComponent: convertIntoSComponent(node.mainComponent) }));
+    // convertToAutoLayout
+    return Object.assign(Object.assign(Object.assign({}, convertSDefaultFrame(node)), pick(node, ['type'])), { focusSection });
+};
+const convertIntoSGroup = (node) => {
+    // convertToAutoLayout
+    return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, pick(node, ['type'])), convertSBase(node)), convertSScene(node)), convertSReaction(node)), { children: [] }), convertSContainer(node)), convertSBlend(node)), convertSLayout(node)), convertSExport(node));
+};
+const convertIntoSRectangle = (node) => {
+    return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, pick(node, ['type'])), convertSDefaultShape(node)), convertSConstraint(node)), convertSCorner(node)), convertSRectangleCorner(node));
+};
+const convertIntoSEllipse = (node) => {
+    return Object.assign(Object.assign(Object.assign(Object.assign({}, pick(node, ['type', 'arcData'])), convertSDefaultShape(node)), convertSConstraint(node)), convertSCorner(node));
+};
+const convertIntoSLine = (node) => {
+    return Object.assign(Object.assign(Object.assign({}, pick(node, ['type'])), convertSDefaultShape(node)), convertSConstraint(node));
+};
+const convertIntoSVectorNode = (node) => {
+    const vectorNetwork = cloneObject(node.vectorNetwork);
+    const vectorPaths = cloneObject(node.vectorPaths);
+    const handleMirroring = cloneObject(node.handleMirroring);
+    return Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, pick(node, ['type'])), convertSDefaultShape(node)), convertSConstraint(node)), convertSCorner(node)), { vectorNetwork,
+        vectorPaths,
+        handleMirroring });
+};
+const convertIntoSTextNode = (node) => {
+    const textStyleId = cloneObject(node.textStyleId);
+    const fontSize = cloneObject(node.fontSize);
+    const fontName = cloneObject(node.fontName);
+    const textCase = cloneObject(node.textCase);
+    const letterSpacing = cloneObject(node.letterSpacing);
+    const textDecoration = cloneObject(node.textDecoration);
+    const lineHeight = cloneObject(node.lineHeight);
+    return Object.assign(Object.assign(Object.assign(Object.assign({}, pick(node, [
+        'type',
+        'hasMissingFont',
+        'textAlignHorizontal',
+        'textAlignVertical',
+        'textAutoResize',
+        'paragraphIndent',
+        'paragraphSpacing',
+        'autoRename',
+        'characters',
+    ])), convertSDefaultShape(node)), convertSConstraint(node)), { textStyleId,
+        fontSize,
+        fontName,
+        textCase,
+        letterSpacing,
+        textDecoration,
+        lineHeight });
 };
 
 const convertSingleNodeToAlt = (node, parent = null) => {
     return convertIntoSNodes([node], parent)[0];
 };
-const frameNodeToAlt = (node, altParent = null) => {
-    if (node.children.length === 0) {
-        // if it has no children, convert frame to rectangle
-        return frameToRectangleNode(node, altParent);
-    }
-    const altNode = new AltFrameNode();
-    altNode.id = node.id;
-    altNode.name = node.name;
-    if (altParent) {
-        altNode.parent = altParent;
-    }
-    convertDefaultShape(altNode, node);
-    convertFrame(altNode, node);
-    convertCorner(altNode, node);
-    convertRectangleCorner(altNode, node);
-    altNode.children = convertIntoSNodes(node.children, altNode);
-    let focusSection = null;
-    try {
-        focusSection = JSON.parse(node.getPluginData(node.id))['focusSection'];
-    }
-    catch (error) {
-        focusSection = null;
-    }
-    return convertToAutoLayout(convertNodesOnRectangle(Object.assign(Object.assign({}, altNode), { focusSection })));
-};
-// auto convert Frame to Rectangle when Frame has no Children
-const frameToRectangleNode = (node, altParent) => {
-    const newNode = new AltRectangleNode();
-    newNode.id = node.id;
-    newNode.name = node.name;
-    if (altParent) {
-        newNode.parent = altParent;
-    }
-    convertDefaultShape(newNode, node);
-    convertRectangleCorner(newNode, node);
-    convertCorner(newNode, node);
-    return newNode;
-};
-const convertIntoSNodes = (sceneNode, sParent = null) => {
-    const mapped = sceneNode.map((node) => {
-        if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-            let altNode;
-            if (node.type === 'RECTANGLE') {
-                altNode = new AltRectangleNode();
-                convertRectangleCorner(altNode, node);
-            }
-            else {
-                altNode = new AltEllipseNode();
-            }
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (sParent) {
-                altNode.parent = sParent;
-            }
-            convertDefaultShape(altNode, node);
-            convertCorner(altNode, node);
-            return altNode;
-        }
-        else if (node.type === 'LINE') {
-            const altNode = new AltRectangleNode();
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (sParent) {
-                altNode.parent = sParent;
-            }
-            convertDefaultShape(altNode, node);
-            // Lines have a height of zero, but they must have a height, so add 1.
-            altNode.height = 1;
-            // Let them be CENTER, since on Lines this property is ignored.
-            altNode.strokeAlign = 'CENTER';
-            // Remove 1 since it now has a height of 1. It won't be visually perfect, but will be almost.
-            altNode.strokeWeight = altNode.strokeWeight - 1;
-            return altNode;
-        }
-        else if (node.type === 'GROUP') {
-            if (node.children.length === 1 && node.visible !== false) {
-                // if Group is visible and has only one child, Group should disappear.
-                // there will be a single value anyway.
-                return convertIntoSNodes(node.children, sParent)[0];
-            }
-            const iconToRect = iconToRectangle(node, sParent);
-            if (iconToRect != null) {
-                return iconToRect;
-            }
-            const altNode = new AltGroupNode();
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (sParent) {
-                altNode.parent = sParent;
-            }
-            convertLayout(altNode, node);
-            convertBlend(altNode, node);
-            altNode.children = convertIntoSNodes(node.children, altNode);
-            // try to find big rect and regardless of that result, also try to convert to autolayout.
-            // There is a big chance this will be returned as a Frame
-            // also, Group will always have at least 2 children.
-            return convertNodesOnRectangle(altNode);
-        }
-        else if (node.type === 'TEXT') {
-            const altNode = new AltTextNode();
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (sParent) {
-                altNode.parent = sParent;
-            }
-            convertDefaultShape(altNode, node);
-            convertIntoAltText(altNode, node);
-            return altNode;
-        }
-        else if (node.type === 'COMPONENT') {
-            const sNode = convertIntoSComponent(node);
-            convertDefaultShape(sNode, node);
-            if (sParent) {
-                sNode.parent = sParent;
-            }
-            return sNode;
-        }
-        else if (node.type === 'VECTOR') {
-            const altNode = new AltRectangleNode();
-            altNode.id = node.id;
-            altNode.name = node.name;
-            if (sParent) {
-                altNode.parent = sParent;
-            }
-            convertDefaultShape(altNode, node);
-            // Vector support is still missing. Meanwhile, add placeholder.
-            altNode.cornerRadius = 8;
-            if (altNode.fills === figma.mixed || altNode.fills.length === 0) {
-                // Use rose[400] from Tailwind 2 when Vector has no color.
-                altNode.fills = [
-                    {
-                        type: 'SOLID',
-                        color: {
-                            r: 0.5,
-                            g: 0.23,
-                            b: 0.27,
-                        },
-                        visible: true,
-                        opacity: 0.5,
-                        blendMode: 'NORMAL',
-                    },
-                ];
-            }
-            return altNode;
-        }
+const convertIntoSNodes = (sSceneNode, sParent = null) => {
+    const mapped = sSceneNode.map((node) => {
         switch (node.type) {
-            case 'INSTANCE':
+            case 'RECTANGLE': {
+                const sNode = convertIntoSRectangle(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                return sNode;
+            }
+            case 'ELLIPSE': {
+                const sNode = convertIntoSEllipse(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                return sNode;
+            }
+            case 'LINE': {
+                const sNode = convertIntoSLine(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                // Lines have a height of zero, but they must have a height, so add 1.
+                sNode.height = 1;
+                // Let them be CENTER, since on Lines this property is ignored.
+                sNode.strokeAlign = 'CENTER';
+                // Remove 1 since it now has a height of 1. It won't be visually perfect, but will be almost.
+                sNode.strokeWeight = sNode.strokeWeight - 1;
+                return sNode;
+            }
+            case 'VECTOR': {
+                const sNode = convertIntoSVectorNode(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                // Vector support is still missing. Meanwhile, add placeholder.
+                sNode.cornerRadius = 8;
+                // @ts-ignore
+                if (sNode.fills === figma.mixed || sNode.fills.length === 0) {
+                    // Use rose[400] from Tailwind 2 when Vector has no color.
+                    sNode.fills = [
+                        {
+                            type: 'SOLID',
+                            color: {
+                                r: 0.5,
+                                g: 0.23,
+                                b: 0.27,
+                            },
+                            visible: true,
+                            opacity: 0.5,
+                            blendMode: 'NORMAL',
+                        },
+                    ];
+                }
+                return sNode;
+            }
+            case 'TEXT': {
+                const sNode = convertIntoSTextNode(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                return sNode;
+            }
+            case 'COMPONENT': {
+                const sNode = convertIntoSComponent(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                sNode.children = convertIntoSNodes(node.children, sNode);
+                return sNode;
+            }
+            case 'GROUP': {
+                if (node.children.length === 1 && node.visible !== false) {
+                    // if Group is visible and has only one child, Group should disappear.
+                    // there will be a single value anyway.
+                    return convertIntoSNodes(node.children, sParent)[0];
+                }
+                // const iconToRect = iconToRectangle(node, sParent)
+                // if (iconToRect != null) {
+                // 	return iconToRect
+                // }
+                const sNode = convertIntoSGroup(node);
+                if (sParent) {
+                    sNode.parent = sParent;
+                }
+                sNode.children = convertIntoSNodes(node.children, sNode);
+                // try to find big rect and regardless of that result, also try to convert to autolayout.
+                // There is a big chance this will be returned as a Frame
+                // also, Group will always have at least 2 children.
+                return convertNodesOnRectangle(sNode);
+            }
+            case 'INSTANCE': {
                 const sNode = convertIntoSInstance(node);
                 if (sParent) {
                     sNode.parent = sParent;
@@ -2758,152 +2470,72 @@ const convertIntoSNodes = (sceneNode, sParent = null) => {
                 if (node.children) {
                     sNode.children = convertIntoSNodes(node.children, sNode);
                 }
-                // convertDefaultShape(sNode, node)
-                return sNode;
-            case 'FRAME':
-                const iconToRect = iconToRectangle(node, sParent);
-                if (iconToRect != null) {
-                    return iconToRect;
+                return convertToAutoLayout(sNode);
+            }
+            case 'FRAME': {
+                // const iconToRect = iconToRectangle(node, sParent)
+                // if (iconToRect != null) {
+                // 	return iconToRect
+                // }
+                /* TODO: Consider if it's needed */
+                // if (node.children.length === 0) {
+                // 	const newNode = new AltRectangleNode()
+                // 	newNode.id = node.id
+                // 	newNode.name = node.name
+                // 	if (altParent) {
+                // 		newNode.parent = altParent
+                // 	}
+                // 	convertDefaultShape(newNode, node)
+                // 	convertRectangleCorner(newNode, node)
+                // 	convertCorner(newNode, node)
+                // 	return newNode
+                // }
+                const sNode = convertIntoSFrame(node);
+                if (sParent) {
+                    sNode.parent = sParent;
                 }
-                return frameNodeToAlt(node, sParent);
+                sNode.children = convertIntoSNodes(node.children, sNode);
+                return convertToAutoLayout(convertNodesOnRectangle(sNode));
+            }
             default:
                 return null;
         }
     });
     return mapped.filter(notEmpty);
 };
-const iconToRectangle = (node, altParent) => {
-    if (node.children.every((d) => d.type === 'VECTOR')) {
-        const altNode = new AltRectangleNode();
-        altNode.id = node.id;
-        altNode.name = node.name;
-        if (altParent) {
-            altNode.parent = altParent;
-        }
-        convertBlend(altNode, node);
-        // width, x, y
-        convertLayout(altNode, node);
-        // Vector support is still missing. Meanwhile, add placeholder.
-        altNode.cornerRadius = 8;
-        altNode.strokes = [];
-        altNode.strokeWeight = 0;
-        altNode.strokeMiterLimit = 0;
-        altNode.strokeAlign = 'CENTER';
-        altNode.strokeCap = 'NONE';
-        altNode.strokeJoin = 'BEVEL';
-        altNode.dashPattern = [];
-        altNode.fillStyleId = '';
-        altNode.strokeStyleId = '';
-        altNode.fills = [
-            {
-                type: 'IMAGE',
-                imageHash: '',
-                scaleMode: 'FIT',
-                visible: true,
-                opacity: 0.5,
-                blendMode: 'NORMAL',
-            },
-        ];
-        return altNode;
-    }
-    return null;
-};
-const convertLayout = (altNode, node) => {
-    // Get the correct X/Y position when rotation is applied.
-    // This won't guarantee a perfect position, since we would still
-    // need to calculate the offset based on node width/height to compensate,
-    // which we are not currently doing. However, this is a lot better than nothing and will help LineNode.
-    if (node.rotation !== undefined && Math.round(node.rotation) !== 0) {
-        const boundingRect = getBoundingRect(node);
-        altNode.x = boundingRect.x;
-        altNode.y = boundingRect.y;
-    }
-    else {
-        altNode.x = node.x;
-        altNode.y = node.y;
-    }
-    altNode.width = node.width;
-    altNode.height = node.height;
-    altNode.rotation = node.rotation;
-    altNode.layoutAlign = node.layoutAlign;
-    altNode.layoutGrow = node.layoutGrow;
-};
-const convertFrame = (altNode, node) => {
-    altNode.layoutMode = node.layoutMode;
-    altNode.primaryAxisSizingMode = node.primaryAxisSizingMode;
-    altNode.counterAxisSizingMode = node.counterAxisSizingMode;
-    // Fix this: https://stackoverflow.com/questions/57859754/flexbox-space-between-but-center-if-one-element
-    // It affects HTML, Tailwind, Flutter and possibly SwiftUI. So, let's be consistent.
-    if (node.primaryAxisAlignItems === 'SPACE_BETWEEN' &&
-        node.children.length === 1) {
-        altNode.primaryAxisAlignItems = 'CENTER';
-    }
-    else {
-        altNode.primaryAxisAlignItems = node.primaryAxisAlignItems;
-    }
-    altNode.counterAxisAlignItems = node.counterAxisAlignItems;
-    altNode.paddingLeft = node.paddingLeft;
-    altNode.paddingRight = node.paddingRight;
-    altNode.paddingTop = node.paddingTop;
-    altNode.paddingBottom = node.paddingBottom;
-    altNode.itemSpacing = node.itemSpacing;
-    altNode.layoutGrids = node.layoutGrids;
-    altNode.gridStyleId = node.gridStyleId;
-    altNode.clipsContent = node.clipsContent;
-    altNode.guides = node.guides;
-};
-const convertGeometry = (altNode, node) => {
-    altNode.fills = node.fills;
-    altNode.strokes = node.strokes;
-    altNode.strokeWeight = node.strokeWeight;
-    altNode.strokeMiterLimit = node.strokeMiterLimit;
-    altNode.strokeAlign = node.strokeAlign;
-    altNode.strokeCap = node.strokeCap;
-    altNode.strokeJoin = node.strokeJoin;
-    altNode.dashPattern = node.dashPattern;
-    altNode.fillStyleId = node.fillStyleId;
-    altNode.strokeStyleId = node.strokeStyleId;
-};
-const convertBlend = (altNode, node) => {
-    altNode.opacity = node.opacity;
-    altNode.blendMode = node.blendMode;
-    altNode.isMask = node.isMask;
-    altNode.effects = node.effects;
-    altNode.effectStyleId = node.effectStyleId;
-    altNode.visible = node.visible;
-};
-const convertDefaultShape = (altNode, node) => {
-    // opacity, visible
-    convertBlend(altNode, node);
-    // fills, strokes
-    convertGeometry(altNode, node);
-    // width, x, y
-    convertLayout(altNode, node);
-};
-const convertCorner = (altNode, node) => {
-    altNode.cornerRadius = node.cornerRadius;
-    altNode.cornerSmoothing = node.cornerSmoothing;
-};
-const convertRectangleCorner = (altNode, node) => {
-    altNode.topLeftRadius = node.topLeftRadius;
-    altNode.topRightRadius = node.topRightRadius;
-    altNode.bottomLeftRadius = node.bottomLeftRadius;
-    altNode.bottomRightRadius = node.bottomRightRadius;
-};
-const convertIntoAltText = (altNode, node) => {
-    altNode.textAlignHorizontal = node.textAlignHorizontal;
-    altNode.textAlignVertical = node.textAlignVertical;
-    altNode.paragraphIndent = node.paragraphIndent;
-    altNode.paragraphSpacing = node.paragraphSpacing;
-    altNode.fontSize = node.fontSize;
-    altNode.fontName = node.fontName;
-    altNode.textCase = node.textCase;
-    altNode.textDecoration = node.textDecoration;
-    altNode.letterSpacing = node.letterSpacing;
-    altNode.textAutoResize = node.textAutoResize;
-    altNode.characters = node.characters;
-    altNode.lineHeight = node.lineHeight;
-};
+// const iconToRectangle = (
+// 	node: FrameNode | InstanceNode | ComponentNode | GroupNode,
+// 	altParent: SFrameNode | SGroupNode | (SBaseNode & SChildrenMixin) | null,
+// ): SRectangleNode | null => {
+// 	if (node.children.every((d) => d.type === 'VECTOR')) {
+// 		const sNode = convertIntoSRectangle(node)
+// 		if (altParent) {
+// 			sNode.parent = altParent
+// 		}
+// 		sNode.cornerRadius = 8
+// 		sNode.strokes = []
+// 		sNode.strokeWeight = 0
+// 		sNode.strokeMiterLimit = 0
+// 		sNode.strokeAlign = 'CENTER'
+// 		sNode.strokeCap = 'NONE'
+// 		sNode.strokeJoin = 'BEVEL'
+// 		sNode.dashPattern = []
+// 		sNode.fillStyleId = ''
+// 		sNode.strokeStyleId = ''
+// 		sNode.fills = [
+// 			{
+// 				type: 'IMAGE',
+// 				imageHash: '',
+// 				scaleMode: 'FIT',
+// 				visible: true,
+// 				opacity: 0.5,
+// 				blendMode: 'NORMAL',
+// 			},
+// 		]
+// 		return sNode
+// 	}
+// 	return null
+// }
 function notEmpty(value) {
     return value !== null && value !== undefined;
 }
@@ -2947,191 +2579,6 @@ const getBoundingRect = (node) => {
         x: XY.x[0],
         y: XY.y[0],
     };
-};
-
-// from https://dev.to/alvaromontoro/building-your-own-color-contrast-checker-4j7o
-const calculateContrastRatio = (color1, color2) => {
-    const color1luminance = luminance(color1);
-    const color2luminance = luminance(color2);
-    const contrast = color1luminance > color2luminance
-        ? (color2luminance + 0.05) / (color1luminance + 0.05)
-        : (color1luminance + 0.05) / (color2luminance + 0.05);
-    return 1 / contrast;
-};
-function luminance(color) {
-    const a = [color.r * 255, color.g * 255, color.b * 255].map(function (v) {
-        v /= 255;
-        return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-    });
-    return a[0] * 0.2126 + a[1] * 0.7152 + a[2] * 0.0722;
-}
-const deepFlatten = (arr) => {
-    let result = [];
-    arr.forEach((d) => {
-        if ('children' in d) {
-            result.push(d);
-            result = result.concat(deepFlatten(d.children));
-        }
-        else {
-            result.push(d);
-        }
-    });
-    return result;
-};
-
-const retrieveGenericSolidUIColors = (sceneNode, framework) => {
-    const selectedChildren = deepFlatten(sceneNode);
-    const colorStr = [];
-    // collect all fills and strokes SOLID colors
-    selectedChildren.forEach((d) => {
-        if ('fills' in d) {
-            const fills = convertSolidColor(d.fills, framework, d.type);
-            if (fills) {
-                colorStr.push(...fills);
-            }
-        }
-        if ('strokes' in d) {
-            const strokes = convertSolidColor(d.strokes, framework, d.type);
-            if (strokes) {
-                colorStr.push(...strokes);
-            }
-        }
-    });
-    // retrieve only unique colors
-    // from https://stackoverflow.com/a/18923480/4418073
-    const unique = {};
-    const distinct = [];
-    colorStr.forEach(function (x) {
-        if (!unique[x.hex]) {
-            distinct.push(x);
-            unique[x.hex] = true;
-        }
-    });
-    return distinct.sort((a, b) => a.hex.localeCompare(b.hex));
-};
-const convertSolidColor = (fills, framework, nodeType) => {
-    // shortcut to be used for calculateContrastRatio.
-    const black = {
-        r: 0,
-        g: 0,
-        b: 0,
-    };
-    const white = {
-        r: 1,
-        g: 1,
-        b: 1,
-    };
-    if (fills && fills !== figma.mixed && fills.length > 0) {
-        return fills
-            .map((fill) => {
-            var _a;
-            if (fill.type === 'SOLID') {
-                let exported = '';
-                const opacity = (_a = fill.opacity) !== null && _a !== void 0 ? _a : 1.0;
-                if (framework === 'flutter') {
-                    exported = flutterColor(fill.color, opacity);
-                    return {
-                        hex: rgbTo6hex(fill.color),
-                        colorName: '',
-                        exported: exported,
-                        contrastBlack: calculateContrastRatio(fill.color, black),
-                        contrastWhite: calculateContrastRatio(fill.color, white),
-                    };
-                }
-                else if (framework === 'html') {
-                    exported = htmlColor(fill.color, opacity);
-                }
-                else if (framework === 'tailwind') {
-                    const kind = nodeType === 'TEXT' ? 'text' : 'bg';
-                    exported = tailwindSolidColor(fill, kind);
-                    const hex = rgbTo6hex(fill.color);
-                    const hexNearestColor = tailwindNearestColor(hex);
-                    // special case since each color has a name.
-                    return {
-                        hex: hex,
-                        colorName: tailwindColors[hexNearestColor],
-                        exported: exported,
-                        contrastBlack: 0,
-                        contrastWhite: 0,
-                    };
-                }
-                else if (framework === 'swiftui') {
-                    exported = swiftuiColor(fill.color, opacity);
-                }
-                return {
-                    hex: rgbTo6hex(fill.color),
-                    colorName: '',
-                    exported: exported,
-                    contrastBlack: 0,
-                    contrastWhite: 0,
-                };
-            }
-        })
-            .filter(notEmpty);
-    }
-    return null;
-};
-const retrieveGenericLinearGradients = (sceneNode, framework) => {
-    const selectedChildren = deepFlatten(sceneNode);
-    const colorStr = [];
-    // collect all Linear Gradient colors from fills and strokes
-    selectedChildren.forEach((d) => {
-        if ('fills' in d) {
-            const fills = convertGradient(d.fills, framework);
-            if (fills) {
-                colorStr.push(...fills);
-            }
-        }
-        if ('strokes' in d) {
-            const strokes = convertGradient(d.strokes, framework);
-            if (strokes) {
-                colorStr.push(...strokes);
-            }
-        }
-    });
-    // retrieve only unique colors
-    // from https://stackoverflow.com/a/18923480/4418073
-    const unique = {};
-    const distinct = [];
-    colorStr.forEach(function (x) {
-        if (!unique[x.css]) {
-            distinct.push(x);
-            unique[x.css] = true;
-        }
-    });
-    return distinct;
-};
-const convertGradient = (fills, framework) => {
-    // kind can be text, bg, border...
-    // [when testing] fills can be undefined
-    if (fills && fills !== figma.mixed && fills.length > 0) {
-        return fills
-            .map((fill) => {
-            if (fill.type === 'GRADIENT_LINEAR') {
-                let exported = '';
-                switch (framework) {
-                    case 'flutter':
-                        exported = flutterGradient(fill);
-                        break;
-                    case 'html':
-                        exported = htmlGradient(fill);
-                        break;
-                    case 'tailwind':
-                        exported = tailwindGradient(fill);
-                        break;
-                    case 'swiftui':
-                        exported = swiftuiGradient(fill);
-                        break;
-                }
-                return {
-                    css: htmlGradient(fill),
-                    exported: exported,
-                };
-            }
-        })
-            .filter(notEmpty);
-    }
-    return null;
 };
 
 let parentId$1 = '';
@@ -3180,7 +2627,7 @@ const tailwindWidgetGenerator = (sceneNode, isJsx) => {
             comp += tailwindText(node, false, isJsx);
         }
         else if (node.type === 'COMPONENT') {
-            comp += tailwindComponent(node);
+            comp += tailwindComponent();
         }
         else if (node.type === 'INSTANCE') {
             comp += tailwindInstance(node);
@@ -3238,7 +2685,6 @@ const tailwindText = (node, isInput, isJsx) => {
     }
 };
 const tailwindComponent = (node) => {
-    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 156 ~ node', node);
     return `\n<Keypad on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }} />`;
 };
 const tailwindInstance = (node) => {
@@ -3254,6 +2700,7 @@ const tailwindInstance = (node) => {
         case 'Button':
             scriptSet.add('Button');
             let option = '';
+            console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 189 ~ node', node);
             if (node.interactions[0]) {
                 const { action, trigger } = node.interactions[0];
                 // const TRIGGER_MAP: Record<STrigger['type'], string> = {
@@ -3297,10 +2744,9 @@ const tailwindInstance = (node) => {
     return `\n<${tag} ${attr} ${builder.build(additionalAttr)} >${indentString(childrenStr)}\n</${tag}>`;
 };
 const tailwindFrame = (node, isJsx) => {
-    var _a;
-    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 137 ~ node', node);
     // const vectorIfExists = tailwindVector(node, isJsx);
     // if (vectorIfExists) return vectorIfExists;
+    var _a;
     if (node.children.length === 1 &&
         node.children[0].type === 'TEXT' &&
         ((_a = node === null || node === void 0 ? void 0 : node.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().match('input'))) {
@@ -3355,7 +2801,6 @@ const tailwindContainer = (node, children, additionalAttr, attr, isJsx) => {
             scriptSet.add('focusSection');
             focusSection = ` use:focusSection={${JSON.stringify(node.focusSection)}} `;
         }
-        console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 314 ~ focusSection', focusSection);
         if (children) {
             return `\n<${tag}${focusSection}${build}${src} >${indentString(children)}\n</${tag}>`;
         }
@@ -3548,57 +2993,50 @@ const run = () => {
     let result = '';
     debugger;
     const convertedSelection = convertIntoSNodes(figma.currentPage.selection, null);
-    console.log('🇻🇳 ~ file: code.ts ~ line 46 ~ convertedSelection', convertedSelection);
     if (mode === 'tailwind') {
         result = tailwindMain(convertedSelection, parentId, isJsx, layerName);
     }
     emit('result', result);
-    if (mode === 'tailwind') {
-        emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode));
-        emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode));
-    }
-    if (mode === 'tailwind') {
-        emit('text', retrieveTailwindText(convertedSelection));
-    }
+    // if (mode === 'tailwind') {
+    // 	emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode))
+    // 	emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode))
+    // }
+    // if (mode === 'tailwind') {
+    // 	emit('text', retrieveTailwindText(convertedSelection))
+    // }
 };
-figma.on('selectionchange', () => {
+function handleNodeSelection() {
     emit('selectionchange');
     const selection = figma.currentPage.selection;
     const isSingleSelection = selection.length === 1;
     if (isSingleSelection) {
         //  Can use convertIntoSNodes to achieved better node structure
-        switch (selection[0].type) {
-            case 'INSTANCE':
-                const includeComponent = ['Button'];
-                const mainComponentName = selection[0].mainComponent.name;
-                if (includeComponent.includes(mainComponentName)) {
-                    const node = pick(selection[0], ['id', 'type']);
-                    let pluginData = [];
-                    try {
-                        pluginData = JSON.parse(selection[0].getPluginData(selection[0].id));
-                    }
-                    catch (error) {
-                        pluginData = [];
-                    }
-                    emit('selected', node, pluginData);
-                }
-                break;
-            case 'FRAME':
-                const node = convertSingleNodeToAlt(selection[0], null);
-                console.log('🇻🇳 ~ file: code.ts ~ line 95 ~ node', node);
-                let pluginData = [];
-                try {
-                    pluginData = JSON.parse(selection[0].getPluginData(selection[0].id));
-                }
-                catch (error) {
-                    pluginData = [];
-                }
-                console.log('🇻🇳 ~ file: code.ts ~ line 98 ~ pluginData', pluginData);
-                node.children = [];
-                emit('selected', node, pluginData);
+        let node = convertSingleNodeToAlt(selection[0], null);
+        node.children = [];
+        if (node) {
+            emit('sceneNodeChange', node);
         }
     }
     run();
+}
+figma.on('selectionchange', () => {
+    handleNodeSelection();
+});
+on('mount', () => {
+    handleNodeSelection();
+});
+on('sceneNodeChangeBack', (payload) => {
+    const { id, key, value } = payload;
+    console.log('🇻🇳 ~ file: code.ts ~ line 122 ~ payload', payload);
+    function setPluginData({ id, key, value }) {
+        const screenNode = getSceneNodeById(id);
+        screenNode.setPluginData(key, JSON.stringify(value));
+    }
+    switch (key) {
+        case 'interactions':
+            setPluginData({ id, key, value });
+            break;
+    }
 });
 on('createInstance', (args) => {
     const compName = 'Keypad';
@@ -3610,37 +3048,6 @@ on('createInstance', (args) => {
     comp.appendChild(rect);
     // figma.currentPage.selection = nodes
     // figma.viewport.scrollAndZoomIntoView(nodes)
-});
-on('pluginDataChange', (id, value) => {
-    const screenNode = getSceneNodeById(id);
-    screenNode.setPluginData(id, JSON.stringify(value));
-});
-on('createInteraction', (sSceneNode) => {
-    const sInstanceNode = sSceneNode;
-    const interactions = [
-        {
-            trigger: { type: 'ON_CLICK' },
-            action: { type: 'SELECT', option: 'A' },
-        },
-    ];
-    const node = figma.getNodeById(sInstanceNode.id);
-    const pluginData = { interactions };
-    node.setPluginData(node.id, JSON.stringify(pluginData));
-    emit('pluginDataChange', node.id, pluginData);
-    node.setRelaunchData({
-        // open: 'Open this trapezoid with Shaper',
-        addOnClick: 'Add sigma interactions',
-    });
-});
-on('createFocusSection', (sSceneNode) => {
-    const sFrameNode = sSceneNode;
-    const focusSection = {
-        default: true,
-    };
-    const node = figma.getNodeById(sFrameNode.id);
-    const pluginData = { focusSection };
-    node.setPluginData(node.id, JSON.stringify(pluginData));
-    emit('pluginDataChange', node.id, pluginData);
 });
 on('tailwind', (args) => {
     mode = 'tailwind';

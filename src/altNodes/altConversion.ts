@@ -1,22 +1,4 @@
 import { convertNodesOnRectangle } from './convertNodesOnRectangle'
-import {
-	AltSceneNode,
-	AltRectangleNode,
-	AltFrameNode,
-	AltTextNode,
-	AltComponentNode,
-	AltInstanceNode,
-	AltGroupNode,
-	AltLayoutMixin,
-	AltFrameMixin,
-	AltGeometryMixin,
-	AltBlendMixin,
-	AltCornerMixin,
-	AltRectangleCornerMixin,
-	AltDefaultShapeMixin,
-	AltEllipseNode,
-	AltReactionMixin,
-} from './altMixins'
 import { convertToAutoLayout } from './convertToAutoLayout'
 import type {
 	SInstanceNode,
@@ -24,197 +6,86 @@ import type {
 	SBaseNode,
 	SComponentNode,
 	SSceneNode,
+	SFrameNode,
+	SRectangleNode,
+	SGroupNode,
 } from '../nodes/types'
-import { pick } from '../utilities/object/extract-attributes'
 import {
 	convertIntoSComponent,
+	convertIntoSEllipse,
+	convertIntoSFrame,
+	convertIntoSGroup,
 	convertIntoSInstance,
+	convertIntoSLine,
+	convertIntoSRectangle,
+	convertIntoSTextNode,
+	convertIntoSVectorNode,
 } from '../nodes/sConversion'
+import { cloneObject } from '../utilities/object/clone-object'
 
-type SParent = AltFrameNode | AltGroupNode | (SBaseNode & SChildrenMixin) | null
+type SParent = SFrameNode | SGroupNode | (SBaseNode & SChildrenMixin) | null
 
 export const convertSingleNodeToAlt = (
 	node: SceneNode,
 	parent: SParent = null,
-): AltSceneNode => {
+): SSceneNode => {
 	return convertIntoSNodes([node], parent)[0]
 }
 
-export const frameNodeToAlt = (
-	node: FrameNode | InstanceNode | ComponentNode,
-	altParent: SParent = null,
-): AltRectangleNode | AltFrameNode | AltGroupNode => {
-	if (node.children.length === 0) {
-		// if it has no children, convert frame to rectangle
-		return frameToRectangleNode(node, altParent)
-	}
-
-	const altNode = new AltFrameNode()
-
-	altNode.id = node.id
-	altNode.name = node.name
-
-	if (altParent) {
-		altNode.parent = altParent
-	}
-
-	convertDefaultShape(altNode, node)
-	convertFrame(altNode, node)
-	convertCorner(altNode, node)
-	convertRectangleCorner(altNode, node)
-
-	altNode.children = convertIntoSNodes(node.children, altNode)
-	let focusSection = null
-	try {
-		focusSection = JSON.parse(node.getPluginData(node.id))['focusSection']
-	} catch (error) {
-		focusSection = null
-	}
-
-	return convertToAutoLayout(
-		convertNodesOnRectangle({ ...altNode, focusSection }),
-	)
-}
-
-// auto convert Frame to Rectangle when Frame has no Children
-const frameToRectangleNode = (
-	node: FrameNode | InstanceNode | ComponentNode,
-	altParent: SParent,
-): AltRectangleNode => {
-	const newNode = new AltRectangleNode()
-
-	newNode.id = node.id
-	newNode.name = node.name
-
-	if (altParent) {
-		newNode.parent = altParent
-	}
-
-	convertDefaultShape(newNode, node)
-	convertRectangleCorner(newNode, node)
-	convertCorner(newNode, node)
-	return newNode
-}
-
 export const convertIntoSNodes = (
-	sceneNode: ReadonlyArray<SceneNode>,
-	sParent:
-		| AltFrameNode
-		| AltGroupNode
-		| (SBaseNode & SChildrenMixin)
-		| null = null,
-): Array<AltSceneNode> | Array<SSceneNode> => {
-	const mapped: Array<AltSceneNode | null> = sceneNode.map(
-		(node: SceneNode) => {
-			if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-				let altNode
-				if (node.type === 'RECTANGLE') {
-					altNode = new AltRectangleNode()
-					convertRectangleCorner(altNode, node)
-				} else {
-					altNode = new AltEllipseNode()
-				}
-
-				altNode.id = node.id
-				altNode.name = node.name
-
-				if (sParent) {
-					altNode.parent = sParent
-				}
-
-				convertDefaultShape(altNode, node)
-				convertCorner(altNode, node)
-
-				return altNode
-			} else if (node.type === 'LINE') {
-				const altNode = new AltRectangleNode()
-
-				altNode.id = node.id
-				altNode.name = node.name
-
-				if (sParent) {
-					altNode.parent = sParent
-				}
-
-				convertDefaultShape(altNode, node)
-
-				// Lines have a height of zero, but they must have a height, so add 1.
-				altNode.height = 1
-
-				// Let them be CENTER, since on Lines this property is ignored.
-				altNode.strokeAlign = 'CENTER'
-
-				// Remove 1 since it now has a height of 1. It won't be visually perfect, but will be almost.
-				altNode.strokeWeight = altNode.strokeWeight - 1
-
-				return altNode
-			} else if (node.type === 'GROUP') {
-				if (node.children.length === 1 && node.visible !== false) {
-					// if Group is visible and has only one child, Group should disappear.
-					// there will be a single value anyway.
-					return convertIntoSNodes(node.children, sParent)[0]
-				}
-
-				const iconToRect = iconToRectangle(node, sParent)
-				if (iconToRect != null) {
-					return iconToRect
-				}
-
-				const altNode = new AltGroupNode()
-
-				altNode.id = node.id
-				altNode.name = node.name
-
-				if (sParent) {
-					altNode.parent = sParent
-				}
-
-				convertLayout(altNode, node)
-				convertBlend(altNode, node)
-
-				altNode.children = convertIntoSNodes(node.children, altNode)
-
-				// try to find big rect and regardless of that result, also try to convert to autolayout.
-				// There is a big chance this will be returned as a Frame
-				// also, Group will always have at least 2 children.
-				return convertNodesOnRectangle(altNode)
-			} else if (node.type === 'TEXT') {
-				const altNode = new AltTextNode()
-
-				altNode.id = node.id
-				altNode.name = node.name
-
-				if (sParent) {
-					altNode.parent = sParent
-				}
-
-				convertDefaultShape(altNode, node)
-				convertIntoAltText(altNode, node)
-				return altNode
-			} else if (node.type === 'COMPONENT') {
-				const sNode = convertIntoSComponent(node)
-				convertDefaultShape(sNode, node)
+	sSceneNode: ReadonlyArray<SceneNode>,
+	sParent: SFrameNode | SGroupNode | (SBaseNode & SChildrenMixin) | null = null,
+): Array<SSceneNode> => {
+	const mapped: Array<SSceneNode | null> = sSceneNode.map((node) => {
+		switch (node.type) {
+			case 'RECTANGLE': {
+				const sNode = convertIntoSRectangle(node)
 				if (sParent) {
 					sNode.parent = sParent
 				}
 				return sNode
-			} else if (node.type === 'VECTOR') {
-				const altNode = new AltRectangleNode()
-				altNode.id = node.id
-				altNode.name = node.name
+			}
+			case 'ELLIPSE': {
+				const sNode = convertIntoSEllipse(node)
 
 				if (sParent) {
-					altNode.parent = sParent
+					sNode.parent = sParent
 				}
 
-				convertDefaultShape(altNode, node)
+				return sNode
+			}
+			case 'LINE': {
+				const sNode = convertIntoSLine(node)
+
+				if (sParent) {
+					sNode.parent = sParent
+				}
+
+				// Lines have a height of zero, but they must have a height, so add 1.
+				sNode.height = 1
+
+				// Let them be CENTER, since on Lines this property is ignored.
+				sNode.strokeAlign = 'CENTER'
+
+				// Remove 1 since it now has a height of 1. It won't be visually perfect, but will be almost.
+				sNode.strokeWeight = sNode.strokeWeight - 1
+
+				return sNode
+			}
+			case 'VECTOR': {
+				const sNode = convertIntoSVectorNode(node)
+
+				if (sParent) {
+					sNode.parent = sParent
+				}
 
 				// Vector support is still missing. Meanwhile, add placeholder.
-				altNode.cornerRadius = 8
+				sNode.cornerRadius = 8
 
-				if (altNode.fills === figma.mixed || altNode.fills.length === 0) {
+				// @ts-ignore
+				if (sNode.fills === figma.mixed || sNode.fills.length === 0) {
 					// Use rose[400] from Tailwind 2 when Vector has no color.
-					altNode.fills = [
+					sNode.fills = [
 						{
 							type: 'SOLID',
 							color: {
@@ -229,205 +100,147 @@ export const convertIntoSNodes = (
 					]
 				}
 
-				return altNode
+				return sNode
+			}
+			case 'TEXT': {
+				const sNode = convertIntoSTextNode(node)
+
+				if (sParent) {
+					sNode.parent = sParent
+				}
+
+				return sNode
+			}
+			case 'COMPONENT': {
+				const sNode = convertIntoSComponent(node)
+				if (sParent) {
+					sNode.parent = sParent
+				}
+
+				if (sParent) {
+					sNode.parent = sParent
+				}
+
+				sNode.children = convertIntoSNodes(node.children, sNode)
+
+				return sNode
+			}
+			case 'GROUP': {
+				if (node.children.length === 1 && node.visible !== false) {
+					// if Group is visible and has only one child, Group should disappear.
+					// there will be a single value anyway.
+					return convertIntoSNodes(node.children, sParent)[0]
+				}
+
+				// const iconToRect = iconToRectangle(node, sParent)
+				// if (iconToRect != null) {
+				// 	return iconToRect
+				// }
+
+				const sNode = convertIntoSGroup(node)
+
+				if (sParent) {
+					sNode.parent = sParent
+				}
+
+				sNode.children = convertIntoSNodes(node.children, sNode)
+
+				// try to find big rect and regardless of that result, also try to convert to autolayout.
+				// There is a big chance this will be returned as a Frame
+				// also, Group will always have at least 2 children.
+				return convertNodesOnRectangle(sNode)
 			}
 
-			switch (node.type) {
-				case 'INSTANCE':
-					const sNode = convertIntoSInstance(node)
-					if (sParent) {
-						sNode.parent = sParent
-					}
-					if (node.children) {
-						sNode.children = convertIntoSNodes(node.children, sNode)
-					}
+			case 'INSTANCE': {
+				const sNode = convertIntoSInstance(node)
+				if (sParent) {
+					sNode.parent = sParent
+				}
+				if (node.children) {
+					sNode.children = convertIntoSNodes(node.children, sNode)
+				}
 
-					// convertDefaultShape(sNode, node)
-
-					return sNode
-				case 'FRAME':
-					const iconToRect = iconToRectangle(node, sParent)
-					if (iconToRect != null) {
-						return iconToRect
-					}
-
-					return frameNodeToAlt(node, sParent)
-				default:
-					return null
+				return convertToAutoLayout(sNode)
 			}
-		},
-	)
+			case 'FRAME': {
+				// const iconToRect = iconToRectangle(node, sParent)
+				// if (iconToRect != null) {
+				// 	return iconToRect
+				// }
+
+				/* TODO: Consider if it's needed */
+				// if (node.children.length === 0) {
+				// 	const newNode = new AltRectangleNode()
+
+				// 	newNode.id = node.id
+				// 	newNode.name = node.name
+
+				// 	if (altParent) {
+				// 		newNode.parent = altParent
+				// 	}
+
+				// 	convertDefaultShape(newNode, node)
+				// 	convertRectangleCorner(newNode, node)
+				// 	convertCorner(newNode, node)
+				// 	return newNode
+				// }
+
+				const sNode = convertIntoSFrame(node)
+
+				if (sParent) {
+					sNode.parent = sParent
+				}
+
+				sNode.children = convertIntoSNodes(node.children, sNode)
+
+				return convertToAutoLayout(convertNodesOnRectangle(sNode))
+			}
+			default:
+				return null
+		}
+	})
 
 	return mapped.filter(notEmpty)
 }
 
-const iconToRectangle = (
-	node: FrameNode | InstanceNode | ComponentNode | GroupNode,
-	altParent: AltFrameNode | AltGroupNode | (SBaseNode & SChildrenMixin) | null,
-): AltRectangleNode | null => {
-	if (node.children.every((d) => d.type === 'VECTOR')) {
-		const altNode = new AltRectangleNode()
-		altNode.id = node.id
-		altNode.name = node.name
+// const iconToRectangle = (
+// 	node: FrameNode | InstanceNode | ComponentNode | GroupNode,
+// 	altParent: SFrameNode | SGroupNode | (SBaseNode & SChildrenMixin) | null,
+// ): SRectangleNode | null => {
+// 	if (node.children.every((d) => d.type === 'VECTOR')) {
+// 		const sNode = convertIntoSRectangle(node)
 
-		if (altParent) {
-			altNode.parent = altParent
-		}
+// 		if (altParent) {
+// 			sNode.parent = altParent
+// 		}
 
-		convertBlend(altNode, node)
+// 		sNode.cornerRadius = 8
 
-		// width, x, y
-		convertLayout(altNode, node)
+// 		sNode.strokes = []
+// 		sNode.strokeWeight = 0
+// 		sNode.strokeMiterLimit = 0
+// 		sNode.strokeAlign = 'CENTER'
+// 		sNode.strokeCap = 'NONE'
+// 		sNode.strokeJoin = 'BEVEL'
+// 		sNode.dashPattern = []
+// 		sNode.fillStyleId = ''
+// 		sNode.strokeStyleId = ''
 
-		// Vector support is still missing. Meanwhile, add placeholder.
-		altNode.cornerRadius = 8
+// 		sNode.fills = [
+// 			{
+// 				type: 'IMAGE',
+// 				imageHash: '',
+// 				scaleMode: 'FIT',
+// 				visible: true,
+// 				opacity: 0.5,
+// 				blendMode: 'NORMAL',
+// 			},
+// 		]
 
-		altNode.strokes = []
-		altNode.strokeWeight = 0
-		altNode.strokeMiterLimit = 0
-		altNode.strokeAlign = 'CENTER'
-		altNode.strokeCap = 'NONE'
-		altNode.strokeJoin = 'BEVEL'
-		altNode.dashPattern = []
-		altNode.fillStyleId = ''
-		altNode.strokeStyleId = ''
-
-		altNode.fills = [
-			{
-				type: 'IMAGE',
-				imageHash: '',
-				scaleMode: 'FIT',
-				visible: true,
-				opacity: 0.5,
-				blendMode: 'NORMAL',
-			},
-		]
-
-		return altNode
-	}
-	return null
-}
-
-const convertLayout = (altNode: AltLayoutMixin, node: LayoutMixin) => {
-	// Get the correct X/Y position when rotation is applied.
-	// This won't guarantee a perfect position, since we would still
-	// need to calculate the offset based on node width/height to compensate,
-	// which we are not currently doing. However, this is a lot better than nothing and will help LineNode.
-	if (node.rotation !== undefined && Math.round(node.rotation) !== 0) {
-		const boundingRect = getBoundingRect(node)
-		altNode.x = boundingRect.x
-		altNode.y = boundingRect.y
-	} else {
-		altNode.x = node.x
-		altNode.y = node.y
-	}
-
-	altNode.width = node.width
-	altNode.height = node.height
-	altNode.rotation = node.rotation
-	altNode.layoutAlign = node.layoutAlign
-	altNode.layoutGrow = node.layoutGrow
-}
-
-const convertFrame = (altNode: AltFrameMixin, node: DefaultFrameMixin) => {
-	altNode.layoutMode = node.layoutMode
-	altNode.primaryAxisSizingMode = node.primaryAxisSizingMode
-	altNode.counterAxisSizingMode = node.counterAxisSizingMode
-
-	// Fix this: https://stackoverflow.com/questions/57859754/flexbox-space-between-but-center-if-one-element
-	// It affects HTML, Tailwind, Flutter and possibly SwiftUI. So, let's be consistent.
-	if (
-		node.primaryAxisAlignItems === 'SPACE_BETWEEN' &&
-		node.children.length === 1
-	) {
-		altNode.primaryAxisAlignItems = 'CENTER'
-	} else {
-		altNode.primaryAxisAlignItems = node.primaryAxisAlignItems
-	}
-
-	altNode.counterAxisAlignItems = node.counterAxisAlignItems
-
-	altNode.paddingLeft = node.paddingLeft
-	altNode.paddingRight = node.paddingRight
-	altNode.paddingTop = node.paddingTop
-	altNode.paddingBottom = node.paddingBottom
-
-	altNode.itemSpacing = node.itemSpacing
-	altNode.layoutGrids = node.layoutGrids
-	altNode.gridStyleId = node.gridStyleId
-	altNode.clipsContent = node.clipsContent
-	altNode.guides = node.guides
-}
-
-const convertGeometry = (altNode: AltGeometryMixin, node: GeometryMixin) => {
-	altNode.fills = node.fills
-	altNode.strokes = node.strokes
-	altNode.strokeWeight = node.strokeWeight
-	altNode.strokeMiterLimit = node.strokeMiterLimit
-	altNode.strokeAlign = node.strokeAlign
-	altNode.strokeCap = node.strokeCap
-	altNode.strokeJoin = node.strokeJoin
-	altNode.dashPattern = node.dashPattern
-	altNode.fillStyleId = node.fillStyleId
-	altNode.strokeStyleId = node.strokeStyleId
-}
-
-const convertBlend = (
-	altNode: AltBlendMixin,
-	node: BlendMixin & SceneNodeMixin,
-) => {
-	altNode.opacity = node.opacity
-	altNode.blendMode = node.blendMode
-	altNode.isMask = node.isMask
-	altNode.effects = node.effects
-	altNode.effectStyleId = node.effectStyleId
-
-	altNode.visible = node.visible
-}
-
-const convertDefaultShape = (
-	altNode: AltDefaultShapeMixin,
-	node: DefaultShapeMixin,
-) => {
-	// opacity, visible
-	convertBlend(altNode, node)
-
-	// fills, strokes
-	convertGeometry(altNode, node)
-
-	// width, x, y
-	convertLayout(altNode, node)
-}
-
-const convertCorner = (altNode: AltCornerMixin, node: CornerMixin) => {
-	altNode.cornerRadius = node.cornerRadius
-	altNode.cornerSmoothing = node.cornerSmoothing
-}
-
-const convertRectangleCorner = (
-	altNode: AltRectangleCornerMixin,
-	node: RectangleCornerMixin,
-) => {
-	altNode.topLeftRadius = node.topLeftRadius
-	altNode.topRightRadius = node.topRightRadius
-	altNode.bottomLeftRadius = node.bottomLeftRadius
-	altNode.bottomRightRadius = node.bottomRightRadius
-}
-
-const convertIntoAltText = (altNode: AltTextNode, node: TextNode) => {
-	altNode.textAlignHorizontal = node.textAlignHorizontal
-	altNode.textAlignVertical = node.textAlignVertical
-	altNode.paragraphIndent = node.paragraphIndent
-	altNode.paragraphSpacing = node.paragraphSpacing
-	altNode.fontSize = node.fontSize
-	altNode.fontName = node.fontName
-	altNode.textCase = node.textCase
-	altNode.textDecoration = node.textDecoration
-	altNode.letterSpacing = node.letterSpacing
-	altNode.textAutoResize = node.textAutoResize
-	altNode.characters = node.characters
-	altNode.lineHeight = node.lineHeight
-}
+// 		return sNode
+// 	}
+// 	return null
+// }
 
 export function notEmpty<TValue>(
 	value: TValue | null | undefined,

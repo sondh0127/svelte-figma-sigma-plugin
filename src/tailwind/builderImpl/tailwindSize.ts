@@ -28,7 +28,6 @@ export const tailwindSizePartial = (node: AltSceneNode): [string, string] => {
 	}
 
 	let h = ''
-	// console.log("sizeResults is ", sizeResult, node);
 
 	if (typeof size.height === 'number') {
 		h = `h-${pxToLayoutSize(size.height)} `

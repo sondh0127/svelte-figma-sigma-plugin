@@ -6,8 +6,6 @@
 
 	const dispatch = createEventDispatcher()
 	const clipboard = () => dispatch('clipboard')
-
-	console.log('making it with hex', hex)
 </script>
 
 <button

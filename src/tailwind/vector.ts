@@ -1,8 +1,8 @@
-import type { AltFrameNode, AltGroupNode } from '../altNodes/altMixins'
+import type { SFrameNode, SGroupNode } from '../nodes/types'
 import { TailwindDefaultBuilder } from './tailwindDefaultBuilder'
 
 export const tailwindVector = (
-	node: AltFrameNode | AltGroupNode,
+	node: SFrameNode | SGroupNode,
 	showLayerName: boolean,
 	parentId: string,
 	isJsx: boolean,

@@ -1,20 +1,21 @@
 import { indentString } from './../common/indentString'
-import type {
-	AltFrameNode,
-	AltSceneNode,
-	AltRectangleNode,
-	AltEllipseNode,
-	AltTextNode,
-	AltGroupNode,
-	AltComponentNode,
-	AltInstanceNode,
-} from '../altNodes/altMixins'
 import { pxToLayoutSize } from './conversionTables'
 import { tailwindVector } from './vector'
 import { TailwindTextBuilder } from './tailwindTextBuilder'
 import { TailwindDefaultBuilder } from './tailwindDefaultBuilder'
 import { retrieveTopFill } from '../common/retrieveFill'
-import type { SInstanceNode, SInteraction, STrigger } from '../nodes/types'
+import type {
+	SInteraction,
+	STrigger,
+	SFrameNode,
+	SSceneNode,
+	SRectangleNode,
+	SEllipseNode,
+	STextNode,
+	SGroupNode,
+	SComponentNode,
+	SInstanceNode,
+} from '../nodes/types'
 
 let parentId = ''
 let showLayerName = false
@@ -22,7 +23,7 @@ let showLayerName = false
 let scriptSet = new Set()
 
 export const tailwindMain = (
-	sceneNode: Array<AltSceneNode>,
+	sceneNode: Array<SSceneNode>,
 	parentIdSrc: string = '',
 	isJsx: boolean = false,
 	layerName: boolean = false,
@@ -65,7 +66,7 @@ export const tailwindMain = (
 
 // todo lint idea: replace BorderRadius.only(topleft: 8, topRight: 8) with BorderRadius.horizontal(8)
 const tailwindWidgetGenerator = (
-	sceneNode: ReadonlyArray<AltSceneNode>,
+	sceneNode: ReadonlyArray<SSceneNode>,
 	isJsx: boolean,
 ): string => {
 	let comp = ''
@@ -99,7 +100,7 @@ const tailwindWidgetGenerator = (
 	return comp
 }
 
-const tailwindGroup = (node: AltGroupNode, isJsx: boolean = false): string => {
+const tailwindGroup = (node: SGroupNode, isJsx: boolean = false): string => {
 	// ignore the view when size is zero or less
 	// while technically it shouldn't get less than 0, due to rounding errors,
 	// it can get to values like: -0.000004196293048153166
@@ -129,7 +130,7 @@ const tailwindGroup = (node: AltGroupNode, isJsx: boolean = false): string => {
 }
 
 const tailwindText = (
-	node: AltTextNode,
+	node: STextNode,
 	isInput: boolean,
 	isJsx: boolean,
 ): string | [string, string] => {
@@ -164,11 +165,7 @@ const tailwindText = (
 	}
 }
 
-const tailwindComponent = (
-	node: AltComponentNode,
-): string | [string, string] => {
-	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 156 ~ node', node)
-
+const tailwindComponent = (node: SComponentNode): string | [string, string] => {
 	return `\n<Keypad on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }} />`
 }
 
@@ -187,6 +184,7 @@ const tailwindInstance = (node: SInstanceNode): string => {
 		case 'Button':
 			scriptSet.add('Button')
 			let option = ''
+			console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 189 ~ node', node)
 			if (node.interactions[0]) {
 				const { action, trigger } = node.interactions[0] as SInteraction
 				// const TRIGGER_MAP: Record<STrigger['type'], string> = {
@@ -241,8 +239,7 @@ const tailwindInstance = (node: SInstanceNode): string => {
 	)}\n</${tag}>`
 }
 
-const tailwindFrame = (node: AltFrameNode, isJsx: boolean): string => {
-	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 137 ~ node', node)
+const tailwindFrame = (node: SFrameNode, isJsx: boolean): string => {
 	// const vectorIfExists = tailwindVector(node, isJsx);
 	// if (vectorIfExists) return vectorIfExists;
 
@@ -288,7 +285,7 @@ const tailwindFrame = (node: AltFrameNode, isJsx: boolean): string => {
 // properties named propSomething always take care of ","
 // sometimes a property might not exist, so it doesn't add ","
 export const tailwindContainer = (
-	node: AltFrameNode | AltRectangleNode | AltEllipseNode,
+	node: SFrameNode | SRectangleNode | SEllipseNode,
 	children: string,
 	additionalAttr: string,
 	attr: {
@@ -335,11 +332,6 @@ export const tailwindContainer = (
 			focusSection = ` use:focusSection={${JSON.stringify(node.focusSection)}} `
 		}
 
-		console.log(
-			'🇻🇳 ~ file: tailwindMain.ts ~ line 314 ~ focusSection',
-			focusSection,
-		)
-
 		if (children) {
 			return `\n<${tag}${focusSection}${build}${src} >${indentString(
 				children,
@@ -352,7 +344,7 @@ export const tailwindContainer = (
 	return children
 }
 
-export const rowColumnProps = (node: AltFrameNode): string => {
+export const rowColumnProps = (node: SFrameNode): string => {
 	// ROW or COLUMN
 
 	// ignore current node when it has only one child and it has the same size

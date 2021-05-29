@@ -1,6 +1,11 @@
-import type { SInstanceNode, SComponentNode } from '../nodes/types'
+import type {
+	SInstanceNode,
+	SComponentNode,
+	SGroupNode,
+	SFrameNode,
+	SSceneNode,
+} from '../nodes/types'
 import { mostFrequent } from './../swiftui/swiftuiMain'
-import type { AltFrameNode, AltGroupNode, AltSceneNode } from './altMixins'
 import { convertGroupToFrame } from './convertGroupToFrame'
 
 /**
@@ -11,8 +16,8 @@ import { convertGroupToFrame } from './convertGroupToFrame'
  * convert it to Frame before adding the attributes. Group doesn't have AutoLayout properties.
  */
 export const convertToAutoLayout = (
-	node: AltFrameNode | AltGroupNode | SInstanceNode | SComponentNode,
-): AltFrameNode | AltGroupNode | SInstanceNode | SComponentNode => {
+	node: SFrameNode | SGroupNode | SInstanceNode | SComponentNode,
+): SFrameNode | SGroupNode | SInstanceNode | SComponentNode => {
 	// only go inside when AutoLayout is not already set.
 
 	if (
@@ -58,12 +63,12 @@ export const convertToAutoLayout = (
 
 		// set children to INHERIT or STRETCH
 		node.children.map((d) => {
-			// @ts-ignore current node can't be AltGroupNode because it was converted into AltFrameNode
+			// @ts-ignore current node can't be SGroupNode because it was converted into SFrameNode
 			layoutAlignInChild(d, node)
 		})
 
 		const allChildrenDirection = node.children.map((d) =>
-			// @ts-ignore current node can't be AltGroupNode because it was converted into AltFrameNode
+			// @ts-ignore current node can't be SGroupNode because it was converted into SFrameNode
 			primaryAxisDirection(d, node),
 		)
 
@@ -99,8 +104,8 @@ const threshold = -2
  * Verify if children are sorted by their relative position and return them sorted, if identified.
  */
 const reorderChildrenIfAligned = (
-	children: ReadonlyArray<AltSceneNode>,
-): [Array<AltSceneNode>, 'HORIZONTAL' | 'VERTICAL' | 'NONE', number] => {
+	children: ReadonlyArray<SSceneNode>,
+): [Array<SSceneNode>, 'HORIZONTAL' | 'VERTICAL' | 'NONE', number] => {
 	if (children.length === 1) {
 		return [[...children], 'NONE', 0]
 	}
@@ -129,7 +134,7 @@ const reorderChildrenIfAligned = (
  * In a previous version, it used a "standard deviation", but "average" performed better.
  */
 const shouldVisit = (
-	children: ReadonlyArray<AltSceneNode>,
+	children: ReadonlyArray<SSceneNode>,
 ): ['HORIZONTAL' | 'VERTICAL' | 'NONE', number] => {
 	const intervalY = calculateInterval(children, 'y')
 	const intervalX = calculateInterval(children, 'x')
@@ -159,13 +164,13 @@ const shouldVisit = (
  * Example: for [item]--8--[item]--8--[item], the result is [8, 8]
  */
 const calculateInterval = (
-	children: ReadonlyArray<AltSceneNode>,
+	children: ReadonlyArray<SSceneNode>,
 	xOrY: 'x' | 'y',
 ): Array<number> => {
 	const hOrW: 'width' | 'height' = xOrY === 'x' ? 'width' : 'height'
 
 	// sort children based on X or Y values
-	const sorted: Array<AltSceneNode> = [...children].sort(
+	const sorted: Array<SSceneNode> = [...children].sort(
 		(a, b) => a[xOrY] - b[xOrY],
 	)
 
@@ -182,7 +187,7 @@ const calculateInterval = (
  * This is very verbose, but also more performant than calculating them independently.
  */
 const detectAutoLayoutPadding = (
-	node: AltFrameNode,
+	node: SFrameNode,
 ): {
 	left: number
 	right: number
@@ -261,7 +266,7 @@ const detectAutoLayoutPadding = (
 /**
  * Detect if children stretch or inherit.
  */
-const layoutAlignInChild = (node: AltSceneNode, parentNode: AltFrameNode) => {
+const layoutAlignInChild = (node: SSceneNode, parentNode: SFrameNode) => {
 	const sameWidth =
 		node.width - 2 >
 		parentNode.width - parentNode.paddingLeft - parentNode.paddingRight
@@ -280,8 +285,8 @@ const layoutAlignInChild = (node: AltSceneNode, parentNode: AltFrameNode) => {
 }
 
 const primaryAxisDirection = (
-	node: AltSceneNode,
-	parentNode: AltFrameNode,
+	node: SSceneNode,
+	parentNode: SFrameNode,
 ): { primary: 'MIN' | 'CENTER' | 'MAX'; counter: 'MIN' | 'CENTER' | 'MAX' } => {
 	// parentNode.layoutMode can't be NONE.
 	const nodeCenteredPosX = node.x + node.width / 2

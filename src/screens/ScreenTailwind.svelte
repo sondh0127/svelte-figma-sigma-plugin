@@ -1,41 +1,41 @@
+<script context="module">
+	import { writable } from 'svelte/store'
+
+	export const sceneNode = writable(null)
+</script>
+
 <script lang="ts">
 	import ItemColor from './TailwindItemColor.svelte'
 	import ItemText from './TailwindItemText.svelte'
 	import SectionGradient from './GenericGradientSection.svelte'
 	import SectionSolid from './GenericSolidColorSection.svelte'
-	import imageKeypad from '../assets/Keypad.png'
 	import type { SFrameNode, SInstanceNode, SSceneNode } from '../nodes/types'
-
+	import { onMount } from 'svelte'
+	import TabControl from '../components/TabControl.svelte'
+	import TabControlItem from '../components/TabControlItem.svelte'
+	import { encode } from '../helper'
+	import { emit, on } from '../utilities/events'
 	import Prism from 'svelte-prism'
 	import 'prism-theme-night-owl'
+	import {
+		Switch,
+		Button,
+		Label,
+		Input,
+	} from '../components/figma-plugin-ds-svelte'
+	import { createEventDispatcher } from 'svelte'
+	import NodeInteractions from '../lib/NodeInteractions.svelte'
 
 	let textData = []
 	let colorData = []
 	let codeData = ''
 	let emptySelection = false
 
-	let sSceneNode: SSceneNode | null = null
-
-	const pluginData = writable({})
-	$: console.log(
-		'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 22 ~ pluginData',
-		$pluginData,
-	)
-
 	$: textObservable = textData
 	$: codeObservable = codeData
 
-	$: interactions = (
-		sSceneNode ? $pluginData[sSceneNode.id]?.interactions || [] : []
-	) as SInstanceNode['interactions']
-
-	$: focusSection = (
-		sSceneNode ? $pluginData[sSceneNode.id]?.focusSection : null
-	) as SFrameNode['focusSection']
-
-	$: if (sSceneNode) {
-		emit('pluginDataChange', sSceneNode.id, $pluginData[sSceneNode.id])
-	}
+	$: focusSection = ($sceneNode?.focusSection ||
+		null) as SFrameNode['focusSection']
 
 	if (false) {
 		// DEBUG
@@ -65,20 +65,11 @@
 	}
 
 	on('selectionchange', () => {
-		sSceneNode = null
+		sceneNode.set(null)
 	})
 
-	on('pluginDataChange', (id, data) => {
-		pluginData.update((_pluginData) => {
-			_pluginData[id] = Object.assign(_pluginData[id], data)
-
-			return _pluginData
-		})
-	})
-
-	on('selected', (_sSceneNode, nodePluginData) => {
-		sSceneNode = _sSceneNode
-		$pluginData[_sSceneNode.id] = nodePluginData
+	on('sceneNodeChange', (_sceneNode) => {
+		sceneNode.set(_sceneNode)
 	})
 
 	on('empty', (args) => {
@@ -94,8 +85,6 @@
 		codeData = result
 	})
 
-	import { Switch, Button } from '../components/figma-plugin-ds-svelte'
-
 	let jsx = false
 	$: if (jsx || !jsx) {
 		emit('jsx', { data: jsx })
@@ -106,23 +95,12 @@
 		emit('jsx', { data: layerName })
 	}
 
-	import { createEventDispatcher } from 'svelte'
 	const dispatch = createEventDispatcher()
 	const clipboard = (data) => dispatch('clipboard', { text: data })
 
 	function handleClipboard(event) {
 		clipboard(event.detail.text)
 	}
-
-	// INIT
-	import { onMount } from 'svelte'
-	import TabControl from '../components/TabControl.svelte'
-	import TabControlItem from '../components/TabControlItem.svelte'
-	import { Label } from '../components/figma-plugin-ds-svelte'
-	import { encode } from '../helper'
-	import { emit, on } from '../utilities/events'
-	import Input from '../components/figma-plugin-ds-svelte/Input.svelte'
-	import { writable } from 'svelte/store'
 
 	onMount(async () => {
 		/* 		const canvas = document.createElement('canvas')
@@ -140,7 +118,6 @@
 				reader.readAsArrayBuffer(blob)
 			})
 		})
-		document.getElementById('imageContainer').appendChild(canvas)
 
 		let assets = {}
 		assets = { Keypad: newBytes }
@@ -149,39 +126,35 @@
 		emit('tailwind')
 	})
 
-	const sectionStyle = 'border rounded-lg bg-white'
-
 	function createKeypad() {
-		console.log('🇻🇳 ~ file: ScreenTailwind.svelte ~ line 239 ~ click')
 		emit('createInstance', {})
 	}
 
-	function handleAdd() {
-		emit('createInteraction', sSceneNode)
-	}
-
 	function resetPluginData() {
-		delete $pluginData[sSceneNode.id]
+		// remove some interaction or remove other
 	}
 
 	function addFocusSection() {
-		const focusSection = {
-			id: sSceneNode.id,
+		// const focusSection = {
+		// 	id: sSceneNode.id,
+		// }
+
+		const focusSection: SFrameNode['focusSection'] = {
+			default: true,
 		}
 
-		const hasDefault = Object.values($pluginData).some(
-			(item) => item.focusSection,
-		)
-
-		if (!hasDefault) {
-			focusSection.default = true
-		}
-
-		$pluginData[sSceneNode.id] = { focusSection }
+		// const hasDefault = Object.values($pluginData).some(
+		// 	(item) => item.focusSection,
+		// )
+		// if (!hasDefault) {
+		// 	focusSection.default = true
+		// }
+		// $pluginData[sSceneNode.id] = { focusSection }
 	}
-</script>
+	function removeFocusSection() {}
 
-<div id="imageContainer" />
+	const sectionStyle = 'border rounded-lg bg-white'
+</script>
 
 <TabControl>
 	<div class="flex items-center" slot="tabs" let:tabs>
@@ -259,30 +232,15 @@
 		<TabControlItem id="2" payload="Component">
 			<Button on:click={createKeypad}>Create Keypad</Button>
 			<Button on:click={resetPluginData}>Reset</Button>
-			{#if sSceneNode?.type === 'INSTANCE'}
-				<div class="flex flex-col">
-					<div class="flex">
-						<Label>Interactions</Label>
-						<Button on:click={handleAdd}>+</Button>
-					</div>
-
-					{#each interactions as interaction}
-						<div class="flex justify-between">
-							<span>{interaction.trigger.type}</span>
-							<span>{interaction.action.type}</span>
-							{#if interaction.action.type === 'SELECT'}
-								<Input bind:value={interaction.action.option} />
-							{/if}
-						</div>
-					{/each}
-				</div>
+			{#if $sceneNode?.type === 'INSTANCE'}
+				<NodeInteractions />
 			{/if}
 
-			{#if sSceneNode?.type === 'FRAME'}
+			{#if $sceneNode?.type === 'FRAME'}
 				<div class="flex flex-col">
 					<div class="flex">
 						<Label>FRAME</Label>
-						<Button on:click={addFocusSection}>Add focus section</Button>
+						<Button on:click={addFocusSection}>+</Button>
 					</div>
 
 					{#if focusSection}
@@ -293,13 +251,7 @@
 									{focusSection.default === true}
 								</span>
 							</Label>
-							<Button
-								on:click={() => {
-									$pluginData[sSceneNode.id] = {}
-								}}
-							>
-								Remove
-							</Button>
+							<Button on:click={removeFocusSection}>Remove</Button>
 						</div>
 					{/if}
 				</div>

@@ -14,6 +14,17 @@ import type {
 	SRectangleCornerMixin,
 	SConstraintMixin,
 	SBaseNodeMixin,
+	SFrameNode,
+	SDefaultFrameMixin,
+	SGroupNode,
+	SReactionMixin,
+	SExportMixin,
+	SRectangleNode,
+	SDefaultShapeMixin,
+	SEllipseNode,
+	SLineNode,
+	SVectorNode,
+	STextNode,
 } from './types'
 import { convertToAutoLayout } from '../altNodes/convertToAutoLayout'
 import { cloneObject } from '../utilities/object/clone-object'
@@ -41,17 +52,10 @@ const convertSLayout = (node: LayoutMixin): SLayoutMixin => {
 	}
 	if (node.rotation !== undefined && Math.round(node.rotation) !== 0) {
 		const boundingRect = getBoundingRect(node)
-		console.log(
-			'🇻🇳 ~ file: sConversion.ts ~ line 35 ~ boundingRect',
-			boundingRect,
-		)
 
 		// TODO: place getBoundingRect with  computeBoundingBox
 		const boundingRect2 = computeBoundingBox(node as any)
-		console.log(
-			'🇻🇳 ~ file: sConversion.ts ~ line 35 ~ boundingRect2',
-			boundingRect2,
-		)
+
 		sLayoutNode.x = boundingRect.x
 		sLayoutNode.y = boundingRect.y
 	}
@@ -140,7 +144,7 @@ const convertSConstraint = (node: ConstraintMixin): SConstraintMixin => {
 	}
 }
 
-const convertSBaseNode = (node: BaseNodeMixin): SBaseNodeMixin => {
+const convertSBase = (node: BaseNodeMixin): SBaseNodeMixin => {
 	return {
 		...pick(node, ['id', 'name']),
 		parent: null,
@@ -155,7 +159,7 @@ const convertSBaseFrame = (node: BaseFrameMixin): SBaseFrameMixin => {
 
 	const baseFrameNode: SBaseFrameMixin = {
 		...convertSScene(node),
-		...convertSBaseNode(node),
+		...convertSBase(node),
 		children: [],
 		...convertSContainer(node),
 		...convertSGeometry(node),
@@ -164,6 +168,7 @@ const convertSBaseFrame = (node: BaseFrameMixin): SBaseFrameMixin => {
 		...convertSBlend(node),
 		...convertSConstraint(node),
 		...convertSLayout(node),
+		...convertSExport(node),
 		...pick(node, [
 			'layoutMode',
 			'primaryAxisSizingMode',
@@ -194,19 +199,72 @@ const convertSBaseFrame = (node: BaseFrameMixin): SBaseFrameMixin => {
 	return baseFrameNode
 }
 
+const convertSReaction = (node: ReactionMixin): SReactionMixin => {
+	const reactions = cloneObject(node.reactions) as SReactionMixin['reactions']
+	return {
+		reactions,
+	}
+}
+
+const convertSDefaultFrame = (node: DefaultFrameMixin): SDefaultFrameMixin => {
+	const reactions = cloneObject(
+		node.reactions,
+	) as SDefaultFrameMixin['reactions']
+	return {
+		...convertSBaseFrame(node),
+		...pick(node, [
+			'overflowDirection',
+			'numberOfFixedChildren',
+			'overlayPositionType',
+			'overlayBackground',
+			'overlayBackgroundInteraction',
+		]),
+		...convertSReaction(node),
+	}
+}
+
 const convertSScene = (node: SceneNodeMixin): SSceneNodeMixin => {
 	return {
 		...pick(node, ['locked', 'visible']),
 	}
 }
+
+const convertSExport = (node: ExportMixin): SExportMixin => {
+	const exportSettings = cloneObject(
+		node.exportSettings,
+	) as SExportMixin['exportSettings']
+
+	return {
+		exportSettings,
+	}
+}
+
+const convertSDefaultShape = (node: DefaultShapeMixin): SDefaultShapeMixin => {
+	const reactions = cloneObject(
+		node.reactions,
+	) as SDefaultFrameMixin['reactions']
+	return {
+		...pick(node, []),
+		...convertSBase(node),
+		...convertSScene(node),
+		reactions,
+		...convertSBlend(node),
+		...convertSGeometry(node),
+		...convertSLayout(node),
+		...convertSExport(node),
+	}
+}
+
 // Nodes Conversion
 
 export const convertIntoSComponent = (node: ComponentNode): SComponentNode => {
-	const interactions: SInstanceNode['interactions'] = []
+	const documentationLinks = cloneObject(
+		node.documentationLinks,
+	) as SComponentNode['documentationLinks']
 	return {
-		...convertSBaseFrame(node),
-		...pick(node, ['type', 'remote', 'key']),
-		interactions,
+		...convertSDefaultFrame(node),
+		...pick(node, ['type', 'remote', 'key', 'description']),
+		documentationLinks,
 	}
 }
 
@@ -214,31 +272,138 @@ type ComponentTag = 'Keypad' | 'Button'
 
 export const convertIntoSInstance = (node: InstanceNode): SInstanceNode => {
 	let interactions = []
-	try {
-		JSON.parse(node.getPluginData(node.id))['interactions']
-	} catch (error) {
-		interactions = []
-	}
+	const includeComponents = ['Button']
+	const mainComponentName = node.mainComponent.name
 
-	return convertToAutoLayout({
-		...convertSBaseFrame(node),
+	if (includeComponents.includes(mainComponentName)) {
+		try {
+			interactions = JSON.parse(node.getPluginData('interactions'))
+		} catch (error) {
+			interactions = []
+		}
+	}
+	return {
+		...convertSDefaultFrame(node),
 		...pick(node, ['type']),
 		interactions,
 		mainComponent: convertIntoSComponent(node.mainComponent),
-	})
+	}
 }
 
-export const convertIntoSFrame = (node: InstanceNode): SInstanceNode => {
-	let focusSection = null
+export const convertIntoSFrame = (node: FrameNode): SFrameNode => {
+	let focusSection = {}
 	try {
-		focusSection = JSON.parse(node.getPluginData(node.id))['focusSection']
+		focusSection = JSON.parse(node.getPluginData('focusSection'))
 	} catch (error) {
-		focusSection = null
+		focusSection = {}
 	}
-	return convertToAutoLayout({
-		...convertSBaseFrame(node),
+	// convertToAutoLayout
+	return {
+		...convertSDefaultFrame(node),
 		...pick(node, ['type']),
 		focusSection,
-		mainComponent: convertIntoSComponent(node.mainComponent),
-	})
+	}
+}
+
+export const convertIntoSGroup = (node: GroupNode): SGroupNode => {
+	// convertToAutoLayout
+	return {
+		...pick(node, ['type']),
+		...convertSBase(node),
+		...convertSScene(node),
+		...convertSReaction(node),
+		children: [],
+		...convertSContainer(node),
+		...convertSBlend(node),
+		...convertSLayout(node),
+		...convertSExport(node),
+	}
+}
+
+export const convertIntoSRectangle = (node: RectangleNode): SRectangleNode => {
+	return {
+		...pick(node, ['type']),
+		...convertSDefaultShape(node),
+		...convertSConstraint(node),
+		...convertSCorner(node),
+		...convertSRectangleCorner(node),
+	}
+}
+
+export const convertIntoSEllipse = (node: EllipseNode): SEllipseNode => {
+	return {
+		...pick(node, ['type', 'arcData']),
+		...convertSDefaultShape(node),
+		...convertSConstraint(node),
+		...convertSCorner(node),
+	}
+}
+
+export const convertIntoSLine = (node: LineNode): SLineNode => {
+	return {
+		...pick(node, ['type']),
+		...convertSDefaultShape(node),
+		...convertSConstraint(node),
+	}
+}
+
+export const convertIntoSVectorNode = (node: VectorNode): SVectorNode => {
+	const vectorNetwork = cloneObject(
+		node.vectorNetwork,
+	) as SVectorNode['vectorNetwork']
+
+	const vectorPaths = cloneObject(
+		node.vectorPaths,
+	) as SVectorNode['vectorPaths']
+
+	const handleMirroring = cloneObject(
+		node.handleMirroring,
+	) as SVectorNode['handleMirroring']
+
+	return {
+		...pick(node, ['type']),
+		...convertSDefaultShape(node),
+		...convertSConstraint(node),
+		...convertSCorner(node),
+		vectorNetwork,
+		vectorPaths,
+		handleMirroring,
+	}
+}
+
+export const convertIntoSTextNode = (node: TextNode): STextNode => {
+	const textStyleId = cloneObject(node.textStyleId) as STextNode['textStyleId']
+	const fontSize = cloneObject(node.fontSize) as STextNode['fontSize']
+	const fontName = cloneObject(node.fontName) as STextNode['fontName']
+	const textCase = cloneObject(node.textCase) as STextNode['textCase']
+	const letterSpacing = cloneObject(
+		node.letterSpacing,
+	) as STextNode['letterSpacing']
+	const textDecoration = cloneObject(
+		node.textDecoration,
+	) as STextNode['textDecoration']
+	const lineHeight = cloneObject(node.lineHeight) as STextNode['lineHeight']
+
+	return {
+		...pick(node, [
+			'type',
+			'hasMissingFont',
+			'textAlignHorizontal',
+			'textAlignVertical',
+			'textAutoResize',
+			'paragraphIndent',
+			'paragraphSpacing',
+			'autoRename',
+			'characters',
+		]),
+		...convertSDefaultShape(node),
+		...convertSConstraint(node),
+		textStyleId,
+		fontSize,
+		fontName,
+		textCase,
+		letterSpacing,
+		textDecoration,
+		lineHeight,
+	}
 }

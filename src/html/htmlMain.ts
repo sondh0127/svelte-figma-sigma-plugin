@@ -210,7 +210,6 @@ export const htmlContainer = (
 
 		let tag = 'div'
 		let src = ''
-		console.log('with ', node.name, 'fill', retrieveTopFill(node.fills))
 		if (retrieveTopFill(node.fills)?.type === 'IMAGE') {
 			tag = 'img'
 			src = ` src="https://via.placeholder.com/${node.width}x${node.height}"`

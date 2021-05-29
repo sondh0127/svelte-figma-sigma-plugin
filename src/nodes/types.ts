@@ -1,23 +1,23 @@
 export interface PluginAPI {
-	readonly apiVersion: '1.0.0'
-	readonly command: string
+	apiVersion: '1.0.0'
+	command: string
 
-	readonly fileKey: string | undefined
+	fileKey: string | undefined
 
-	readonly viewport: ViewportAPI
+	viewport: ViewportAPI
 	closePlugin(message?: string): void
 
 	notify(message: string, options?: NotificationOptions): NotificationHandler
 
 	showUI(html: string, options?: ShowUIOptions): void
-	readonly ui: UIAPI
+	ui: UIAPI
 
-	readonly clientStorage: ClientStorageAPI
+	clientStorage: ClientStorageAPI
 
 	getNodeById(id: string): SBaseNode | null
 	getStyleById(id: string): BaseStyle | null
 
-	readonly root: SDocumentNode
+	root: SDocumentNode
 	currentPage: SPageNode
 
 	on(
@@ -35,13 +35,13 @@ export interface PluginAPI {
 
 	readonly mixed: unique symbol
 
-	createRectangle(): RectangleNode
-	createLine(): LineNode
-	createEllipse(): EllipseNode
+	createRectangle(): SRectangleNode
+	createLine(): SLineNode
+	createEllipse(): SEllipseNode
 	createPolygon(): PolygonNode
 	createStar(): StarNode
-	createVector(): VectorNode
-	createText(): TextNode
+	createVector(): SVectorNode
+	createText(): STextNode
 	createFrame(): SFrameNode
 	createComponent(): SComponentNode
 	createPage(): SPageNode
@@ -97,7 +97,7 @@ export interface PluginAPI {
 
 	listAvailableFontsAsync(): Promise<Font[]>
 	loadFontAsync(fontName: FontName): Promise<void>
-	readonly hasMissingFont: boolean
+	hasMissingFont: boolean
 
 	createNodeFromSvg(svg: string): SFrameNode
 
@@ -113,12 +113,12 @@ export interface PluginAPI {
 		nodes: ReadonlyArray<SBaseNode>,
 		parent: SBaseNode & SChildrenMixin,
 		index?: number,
-	): GroupNode
+	): SGroupNode
 	flatten(
 		nodes: ReadonlyArray<SBaseNode>,
 		parent?: SBaseNode & SChildrenMixin,
 		index?: number,
-	): VectorNode
+	): SVectorNode
 
 	union(
 		nodes: ReadonlyArray<SBaseNode>,
@@ -191,7 +191,7 @@ interface ViewportAPI {
 	center: Vector
 	zoom: number
 	scrollAndZoomIntoView(nodes: ReadonlyArray<SBaseNode>): void
-	readonly bounds: Rect
+	bounds: Rect
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,33 +200,33 @@ interface ViewportAPI {
 type Transform = [[number, number, number], [number, number, number]]
 
 interface Vector {
-	readonly x: number
-	readonly y: number
+	x: number
+	y: number
 }
 
 interface Rect {
-	readonly x: number
-	readonly y: number
-	readonly width: number
-	readonly height: number
+	x: number
+	y: number
+	width: number
+	height: number
 }
 
 interface RGB {
-	readonly r: number
-	readonly g: number
-	readonly b: number
+	r: number
+	g: number
+	b: number
 }
 
 interface RGBA {
-	readonly r: number
-	readonly g: number
-	readonly b: number
-	readonly a: number
+	r: number
+	g: number
+	b: number
+	a: number
 }
 
 interface FontName {
-	readonly family: string
-	readonly style: string
+	family: string
+	style: string
 }
 
 type TextCase = 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE'
@@ -234,25 +234,25 @@ type TextCase = 'ORIGINAL' | 'UPPER' | 'LOWER' | 'TITLE'
 type TextDecoration = 'NONE' | 'UNDERLINE' | 'STRIKETHROUGH'
 
 interface ArcData {
-	readonly startingAngle: number
-	readonly endingAngle: number
-	readonly innerRadius: number
+	startingAngle: number
+	endingAngle: number
+	innerRadius: number
 }
 
 interface ShadowEffect {
-	readonly type: 'DROP_SHADOW' | 'INNER_SHADOW'
-	readonly color: RGBA
-	readonly offset: Vector
-	readonly radius: number
-	readonly spread?: number
-	readonly visible: boolean
-	readonly blendMode: BlendMode
+	type: 'DROP_SHADOW' | 'INNER_SHADOW'
+	color: RGBA
+	offset: Vector
+	radius: number
+	spread?: number
+	visible: boolean
+	blendMode: BlendMode
 }
 
 interface BlurEffect {
-	readonly type: 'LAYER_BLUR' | 'BACKGROUND_BLUR'
-	readonly radius: number
-	readonly visible: boolean
+	type: 'LAYER_BLUR' | 'BACKGROUND_BLUR'
+	radius: number
+	visible: boolean
 }
 
 type Effect = ShadowEffect | BlurEffect
@@ -270,13 +270,13 @@ interface ColorStop {
 }
 
 interface ImageFilters {
-	readonly exposure?: number
-	readonly contrast?: number
-	readonly saturation?: number
-	readonly temperature?: number
-	readonly tint?: number
-	readonly highlights?: number
-	readonly shadows?: number
+	exposure?: number
+	contrast?: number
+	saturation?: number
+	temperature?: number
+	tint?: number
+	highlights?: number
+	shadows?: number
 }
 
 interface SSolidPaint {
@@ -318,29 +318,29 @@ interface SImagePaint {
 type SPaint = SSolidPaint | SGradientPaint | SImagePaint
 
 interface Guide {
-	readonly axis: 'X' | 'Y'
-	readonly offset: number
+	axis: 'X' | 'Y'
+	offset: number
 }
 
 interface RowsColsLayoutGrid {
-	readonly pattern: 'ROWS' | 'COLUMNS'
-	readonly alignment: 'MIN' | 'MAX' | 'STRETCH' | 'CENTER'
-	readonly gutterSize: number
+	pattern: 'ROWS' | 'COLUMNS'
+	alignment: 'MIN' | 'MAX' | 'STRETCH' | 'CENTER'
+	gutterSize: number
 
-	readonly count: number // Infinity when "Auto" is set in the UI
-	readonly sectionSize?: number // Not set for alignment: "STRETCH"
-	readonly offset?: number // Not set for alignment: "CENTER"
+	count: number // Infinity when "Auto" is set in the UI
+	sectionSize?: number // Not set for alignment: "STRETCH"
+	offset?: number // Not set for alignment: "CENTER"
 
-	readonly visible?: boolean
-	readonly color?: RGBA
+	visible?: boolean
+	color?: RGBA
 }
 
 interface GridLayoutGrid {
-	readonly pattern: 'GRID'
-	readonly sectionSize: number
+	pattern: 'GRID'
+	sectionSize: number
 
-	readonly visible?: boolean
-	readonly color?: RGBA
+	visible?: boolean
+	color?: RGBA
 }
 
 type LayoutGrid = RowsColsLayoutGrid | GridLayoutGrid
@@ -380,51 +380,51 @@ type ExportSettings =
 type WindingRule = 'NONZERO' | 'EVENODD'
 
 interface VectorVertex {
-	readonly x: number
-	readonly y: number
-	readonly strokeCap?: StrokeCap
-	readonly strokeJoin?: StrokeJoin
-	readonly cornerRadius?: number
-	readonly handleMirroring?: HandleMirroring
+	x: number
+	y: number
+	strokeCap?: StrokeCap
+	strokeJoin?: StrokeJoin
+	cornerRadius?: number
+	handleMirroring?: HandleMirroring
 }
 
 interface VectorSegment {
-	readonly start: number
-	readonly end: number
-	readonly tangentStart?: Vector // Defaults to { x: 0, y: 0 }
-	readonly tangentEnd?: Vector // Defaults to { x: 0, y: 0 }
+	start: number
+	end: number
+	tangentStart?: Vector // Defaults to { x: 0, y: 0 }
+	tangentEnd?: Vector // Defaults to { x: 0, y: 0 }
 }
 
 interface VectorRegion {
-	readonly windingRule: WindingRule
-	readonly loops: ReadonlyArray<ReadonlyArray<number>>
+	windingRule: WindingRule
+	loops: ReadonlyArray<ReadonlyArray<number>>
 }
 
 interface VectorNetwork {
-	readonly vertices: ReadonlyArray<VectorVertex>
-	readonly segments: ReadonlyArray<VectorSegment>
-	readonly regions?: ReadonlyArray<VectorRegion> // Defaults to []
+	vertices: Array<VectorVertex>
+	segments: Array<VectorSegment>
+	regions?: Array<VectorRegion> // Defaults to []
 }
 
 interface VectorPath {
-	readonly windingRule: WindingRule | 'NONE'
-	readonly data: string
+	windingRule: WindingRule | 'NONE'
+	data: string
 }
 
-type VectorPaths = ReadonlyArray<VectorPath>
+type VectorPaths = Array<VectorPath>
 
 interface LetterSpacing {
-	readonly value: number
-	readonly unit: 'PIXELS' | 'PERCENT'
+	value: number
+	unit: 'PIXELS' | 'PERCENT'
 }
 
 type LineHeight =
 	| {
-			readonly value: number
-			readonly unit: 'PIXELS' | 'PERCENT'
+			value: number
+			unit: 'PIXELS' | 'PERCENT'
 	  }
 	| {
-			readonly unit: 'AUTO'
+			unit: 'AUTO'
 	  }
 
 type BlendMode =
@@ -471,18 +471,18 @@ export type SAction =
 	  }
 
 interface SimpleTransition {
-	readonly type: 'DISSOLVE' | 'SMART_ANIMATE' | 'SCROLL_ANIMATE'
-	readonly easing: Easing
-	readonly duration: number
+	type: 'DISSOLVE' | 'SMART_ANIMATE' | 'SCROLL_ANIMATE'
+	easing: Easing
+	duration: number
 }
 
 interface DirectionalTransition {
-	readonly type: 'MOVE_IN' | 'MOVE_OUT' | 'PUSH' | 'SLIDE_IN' | 'SLIDE_OUT'
-	readonly direction: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM'
-	readonly matchLayers: boolean
+	type: 'MOVE_IN' | 'MOVE_OUT' | 'PUSH' | 'SLIDE_IN' | 'SLIDE_OUT'
+	direction: 'LEFT' | 'RIGHT' | 'TOP' | 'BOTTOM'
+	matchLayers: boolean
 
-	readonly easing: Easing
-	readonly duration: number
+	easing: Easing
+	duration: number
 }
 
 type Transition = SimpleTransition | DirectionalTransition
@@ -498,8 +498,8 @@ export type STrigger =
 type Navigation = 'NAVIGATE' | 'SWAP' | 'OVERLAY' | 'SCROLL_TO' | 'CHANGE_TO'
 
 interface Easing {
-	readonly type: 'EASE_IN' | 'EASE_OUT' | 'EASE_IN_AND_OUT' | 'LINEAR'
-	readonly easingFunctionCubicBezier?: EasingFunctionBezier
+	type: 'EASE_IN' | 'EASE_OUT' | 'EASE_IN_AND_OUT' | 'LINEAR'
+	easingFunctionCubicBezier?: EasingFunctionBezier
 }
 
 interface EasingFunctionBezier {
@@ -521,9 +521,7 @@ type OverlayPositionType =
 	| 'BOTTOM_RIGHT'
 	| 'MANUAL'
 
-type OverlayBackground =
-	| { readonly type: 'NONE' }
-	| { readonly type: 'SOLID_COLOR'; readonly color: RGBA }
+type OverlayBackground = { type: 'NONE' } | { type: 'SOLID_COLOR'; color: RGBA }
 
 type OverlayBackgroundInteraction = 'NONE' | 'CLOSE_ON_CLICK_OUTSIDE'
 
@@ -536,7 +534,7 @@ export interface SBaseNodeMixin {
 	id: string
 	parent: (SBaseNode & SChildrenMixin) | null
 	name: string // Note: setting this also sets `autoRename` to false on TextNodes
-	// readonly removed: boolean
+	//  removed: boolean
 	// toString(): string
 	// remove(): void
 
@@ -600,13 +598,13 @@ export interface SBlendMixin {
 	opacity: number
 	blendMode: 'PASS_THROUGH' | BlendMode
 	isMask: boolean
-	effects: ReadonlyArray<Effect>
+	effects: Array<Effect>
 	effectStyleId: string
 }
 
 export interface SContainerMixin {
 	expanded: boolean
-	// backgrounds: ReadonlyArray<Paint> // DEPRECATED: use 'fills' instead
+	// backgrounds: Array<Paint> // DEPRECATED: use 'fills' instead
 	// backgroundStyleId: string // DEPRECATED: use 'fillStyleId' instead
 }
 
@@ -620,15 +618,15 @@ type StrokeJoin = 'MITER' | 'BEVEL' | 'ROUND'
 type HandleMirroring = 'NONE' | 'ANGLE' | 'ANGLE_AND_LENGTH'
 
 export interface SGeometryMixin {
-	fills: Array<SPaint>
+	fills: Array<SPaint> | PluginAPI['mixed']
 	strokes: Array<SPaint>
 	strokeWeight: number
 	strokeMiterLimit: number
 	strokeAlign: 'CENTER' | 'INSIDE' | 'OUTSIDE'
-	strokeCap: StrokeCap
-	strokeJoin: StrokeJoin
+	strokeCap: StrokeCap | PluginAPI['mixed']
+	strokeJoin: StrokeJoin | PluginAPI['mixed']
 	dashPattern: Array<number>
-	fillStyleId: string
+	fillStyleId: string | PluginAPI['mixed']
 	strokeStyleId: string
 	// outlineStroke(): VectorNode | null
 }
@@ -645,41 +643,37 @@ export interface SRectangleCornerMixin {
 	bottomRightRadius: number
 }
 
-interface SExportMixin {
-	// exportSettings: Array<ExportSettings>
+export interface SExportMixin {
+	exportSettings: Array<ExportSettings>
 	// exportAsync(settings?: ExportSettings): Promise<Uint8Array> // Defaults to PNG format
 }
 
 interface SFramePrototypingMixin {
-	/* 	overflowDirection: OverflowDirection
+	overflowDirection: OverflowDirection
 	numberOfFixedChildren: number
 
-	readonly overlayPositionType: OverlayPositionType
-	readonly overlayBackground: OverlayBackground
-	readonly overlayBackgroundInteraction: OverlayBackgroundInteraction */
+	overlayPositionType: OverlayPositionType
+	overlayBackground: OverlayBackground
+	overlayBackgroundInteraction: OverlayBackgroundInteraction
 }
 
-interface SReactionMixin {
+export interface SReactionMixin {
 	reactions: Array<SReaction>
 }
 
-interface SInteractionMixin {
-	interactions: Array<SInteraction>
-}
-
 interface DocumentationLink {
-	readonly uri: string
+	uri: string
 }
 
 interface PublishableMixin {
-	// description: string
-	// documentationLinks: ReadonlyArray<DocumentationLink>
+	description: string
+	documentationLinks: Array<DocumentationLink>
 	remote: boolean
 	key: string // The key to use with "importComponentByKeyAsync", "importComponentSetByKeyAsync", and "importStyleByKeyAsync"
 	// getPublishStatusAsync(): Promise<PublishStatus>
 }
 
-interface DefaultShapeMixin
+export interface SDefaultShapeMixin
 	extends SBaseNodeMixin,
 		SSceneNodeMixin,
 		SReactionMixin,
@@ -722,19 +716,18 @@ export interface SBaseFrameMixin
 	guides: Array<Guide>
 }
 
-interface SDefaultFrameMixin
+export interface SDefaultFrameMixin
 	extends SBaseFrameMixin,
 		SFramePrototypingMixin,
-		// SReactionMixin,
-		SInteractionMixin {}
+		SReactionMixin {}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Nodes
 
 interface SDocumentNode extends SBaseNodeMixin {
-	/* 	readonly type: 'DOCUMENT'
+	/* 	 type: 'DOCUMENT'
 
-	readonly children: ReadonlyArray<PageNode> */
+	 children: ReadonlyArray<PageNode> */
 	/* 	appendChild(child: PageNode): void
 	insertChild(index: number, child: PageNode): void
 	findChildren(callback?: (node: PageNode) => boolean): Array<PageNode>
@@ -749,8 +742,12 @@ interface SDocumentNode extends SBaseNodeMixin {
 	): PageNode | SSceneNode | null */
 }
 
+interface SInteractionMixin {
+	interactions: Array<SInteraction>
+}
+
 interface SPageNode extends SBaseNodeMixin, SChildrenMixin, SExportMixin {
-	readonly type: 'PAGE'
+	type: 'PAGE'
 	/* 	clone(): SPageNode
 
 	guides: ReadonlyArray<Guide>
@@ -759,7 +756,7 @@ interface SPageNode extends SBaseNodeMixin, SChildrenMixin, SExportMixin {
 
 	backgrounds: ReadonlyArray<Paint>
 
-	readonly prototypeStartNode:
+	 prototypeStartNode:
 		| FrameNode
 		| GroupNode
 		| SComponentNode
@@ -794,7 +791,7 @@ export interface SFrameNode extends SDefaultFrameMixin, SFocusSectionMixin {
 	// clone(): SFrameNode
 }
 
-interface GroupNode
+export interface SGroupNode
 	extends SBaseNodeMixin,
 		SSceneNodeMixin,
 		SReactionMixin,
@@ -803,8 +800,8 @@ interface GroupNode
 		SBlendMixin,
 		SLayoutMixin,
 		SExportMixin {
-	readonly type: 'GROUP'
-	clone(): GroupNode
+	type: 'GROUP'
+	// clone(): SGroupNode
 }
 
 interface SliceNode
@@ -812,61 +809,64 @@ interface SliceNode
 		SSceneNodeMixin,
 		SLayoutMixin,
 		SExportMixin {
-	readonly type: 'SLICE'
+	type: 'SLICE'
 	clone(): SliceNode
 }
 
-interface RectangleNode
-	extends DefaultShapeMixin,
+export interface SRectangleNode
+	extends SDefaultShapeMixin,
 		SConstraintMixin,
 		SCornerMixin,
 		SRectangleCornerMixin {
-	readonly type: 'RECTANGLE'
-	clone(): RectangleNode
+	type: 'RECTANGLE'
+	// clone(): SRectangleNode
 }
 
-interface LineNode extends DefaultShapeMixin, SConstraintMixin {
-	readonly type: 'LINE'
-	clone(): LineNode
+export interface SLineNode extends SDefaultShapeMixin, SConstraintMixin {
+	type: 'LINE'
+	// clone(): LineNode
 }
 
-interface EllipseNode
-	extends DefaultShapeMixin,
+export interface SEllipseNode
+	extends SDefaultShapeMixin,
 		SConstraintMixin,
 		SCornerMixin {
-	readonly type: 'ELLIPSE'
-	clone(): EllipseNode
+	type: 'ELLIPSE'
+	// clone(): SEllipseNode
 	arcData: ArcData
 }
 
 interface PolygonNode
-	extends DefaultShapeMixin,
+	extends SDefaultShapeMixin,
 		SConstraintMixin,
 		SCornerMixin {
-	readonly type: 'POLYGON'
+	type: 'POLYGON'
 	clone(): PolygonNode
 	pointCount: number
 }
 
-interface StarNode extends DefaultShapeMixin, SConstraintMixin, SCornerMixin {
-	readonly type: 'STAR'
+interface StarNode extends SDefaultShapeMixin, SConstraintMixin, SCornerMixin {
+	type: 'STAR'
 	clone(): StarNode
 	pointCount: number
 	innerRadius: number
 }
 
-interface VectorNode extends DefaultShapeMixin, SConstraintMixin, SCornerMixin {
-	readonly type: 'VECTOR'
-	clone(): VectorNode
+export interface SVectorNode
+	extends SDefaultShapeMixin,
+		SConstraintMixin,
+		SCornerMixin {
+	type: 'VECTOR'
+	// clone(): VectorNode
 	vectorNetwork: VectorNetwork
 	vectorPaths: VectorPaths
-	handleMirroring: HandleMirroring | PluginAPI['mixed']
+	handleMirroring: HandleMirroring
 }
 
-interface TextNode extends DefaultShapeMixin, SConstraintMixin {
-	readonly type: 'TEXT'
-	clone(): TextNode
-	readonly hasMissingFont: boolean
+export interface STextNode extends SDefaultShapeMixin, SConstraintMixin {
+	type: 'TEXT'
+	// clone(): STextNode
+	hasMissingFont: boolean
 	textAlignHorizontal: 'LEFT' | 'CENTER' | 'RIGHT' | 'JUSTIFIED'
 	textAlignVertical: 'TOP' | 'CENTER' | 'BOTTOM'
 	textAutoResize: 'NONE' | 'WIDTH_AND_HEIGHT' | 'HEIGHT'
@@ -883,60 +883,60 @@ interface TextNode extends DefaultShapeMixin, SConstraintMixin {
 	lineHeight: LineHeight | PluginAPI['mixed']
 
 	characters: string
-	insertCharacters(
-		start: number,
-		characters: string,
-		useStyle?: 'BEFORE' | 'AFTER',
-	): void
-	deleteCharacters(start: number, end: number): void
+	// insertCharacters(
+	// 	start: number,
+	// 	characters: string,
+	// 	useStyle?: 'BEFORE' | 'AFTER',
+	// ): void
+	// deleteCharacters(start: number, end: number): void
 
-	getRangeFontSize(start: number, end: number): number | PluginAPI['mixed']
-	setRangeFontSize(start: number, end: number, value: number): void
-	getRangeFontName(start: number, end: number): FontName | PluginAPI['mixed']
-	setRangeFontName(start: number, end: number, value: FontName): void
-	getRangeTextCase(start: number, end: number): TextCase | PluginAPI['mixed']
-	setRangeTextCase(start: number, end: number, value: TextCase): void
-	getRangeTextDecoration(
-		start: number,
-		end: number,
-	): TextDecoration | PluginAPI['mixed']
-	setRangeTextDecoration(
-		start: number,
-		end: number,
-		value: TextDecoration,
-	): void
-	getRangeLetterSpacing(
-		start: number,
-		end: number,
-	): LetterSpacing | PluginAPI['mixed']
-	setRangeLetterSpacing(start: number, end: number, value: LetterSpacing): void
-	getRangeLineHeight(
-		start: number,
-		end: number,
-	): LineHeight | PluginAPI['mixed']
-	setRangeLineHeight(start: number, end: number, value: LineHeight): void
-	getRangeFills(start: number, end: number): SPaint[] | PluginAPI['mixed']
-	setRangeFills(start: number, end: number, value: SPaint[]): void
-	getRangeTextStyleId(start: number, end: number): string | PluginAPI['mixed']
-	setRangeTextStyleId(start: number, end: number, value: string): void
-	getRangeFillStyleId(start: number, end: number): string | PluginAPI['mixed']
-	setRangeFillStyleId(start: number, end: number, value: string): void
+	// getRangeFontSize(start: number, end: number): number | PluginAPI['mixed']
+	// setRangeFontSize(start: number, end: number, value: number): void
+	// getRangeFontName(start: number, end: number): FontName | PluginAPI['mixed']
+	// setRangeFontName(start: number, end: number, value: FontName): void
+	// getRangeTextCase(start: number, end: number): TextCase | PluginAPI['mixed']
+	// setRangeTextCase(start: number, end: number, value: TextCase): void
+	// getRangeTextDecoration(
+	// 	start: number,
+	// 	end: number,
+	// ): TextDecoration | PluginAPI['mixed']
+	// setRangeTextDecoration(
+	// 	start: number,
+	// 	end: number,
+	// 	value: TextDecoration,
+	// ): void
+	// getRangeLetterSpacing(
+	// 	start: number,
+	// 	end: number,
+	// ): LetterSpacing | PluginAPI['mixed']
+	// setRangeLetterSpacing(start: number, end: number, value: LetterSpacing): void
+	// getRangeLineHeight(
+	// 	start: number,
+	// 	end: number,
+	// ): LineHeight | PluginAPI['mixed']
+	// setRangeLineHeight(start: number, end: number, value: LineHeight): void
+	// getRangeFills(start: number, end: number): SPaint[] | PluginAPI['mixed']
+	// setRangeFills(start: number, end: number, value: SPaint[]): void
+	// getRangeTextStyleId(start: number, end: number): string | PluginAPI['mixed']
+	// setRangeTextStyleId(start: number, end: number, value: string): void
+	// getRangeFillStyleId(start: number, end: number): string | PluginAPI['mixed']
+	// setRangeFillStyleId(start: number, end: number, value: string): void
 }
 
 interface ComponentSetNode extends SBaseFrameMixin, PublishableMixin {
-	readonly type: 'COMPONENT_SET'
+	type: 'COMPONENT_SET'
 	clone(): ComponentSetNode
-	readonly defaultVariant: SComponentNode
+	defaultVariant: SComponentNode
 }
 
 export interface SComponentNode extends SDefaultFrameMixin, PublishableMixin {
-	readonly type: 'COMPONENT'
+	type: 'COMPONENT'
 	// clone(): SComponentNode
 	// createInstance(): SInstanceNode
 }
 
-export interface SInstanceNode extends SDefaultFrameMixin {
-	readonly type: 'INSTANCE'
+export interface SInstanceNode extends SDefaultFrameMixin, SInteractionMixin {
+	type: 'INSTANCE'
 	// clone(): SInstanceNode
 	mainComponent: SComponentNode | null
 	// swapComponent(componentNode: ComponentNode): void
@@ -945,10 +945,10 @@ export interface SInstanceNode extends SDefaultFrameMixin {
 }
 
 interface BooleanOperationNode
-	extends DefaultShapeMixin,
+	extends SDefaultShapeMixin,
 		SChildrenMixin,
 		SCornerMixin {
-	readonly type: 'BOOLEAN_OPERATION'
+	type: 'BOOLEAN_OPERATION'
 	clone(): BooleanOperationNode
 	booleanOperation: 'UNION' | 'INTERSECT' | 'SUBTRACT' | 'EXCLUDE'
 
@@ -960,18 +960,18 @@ export type SBaseNode = SDocumentNode | SPageNode | SSceneNode
 export type SSceneNode =
 	| SliceNode
 	| SFrameNode
-	| GroupNode
+	| SGroupNode
 	| ComponentSetNode
 	| SComponentNode
 	| SInstanceNode
 	| BooleanOperationNode
-	| VectorNode
+	| SVectorNode
 	| StarNode
-	| LineNode
-	| EllipseNode
+	| SLineNode
+	| SEllipseNode
 	| PolygonNode
-	| RectangleNode
-	| TextNode
+	| SRectangleNode
+	| STextNode
 
 type NodeType =
 	| 'DOCUMENT'
@@ -996,8 +996,8 @@ type NodeType =
 type StyleType = 'PAINT' | 'TEXT' | 'EFFECT' | 'GRID'
 
 interface BaseStyle extends PublishableMixin {
-	readonly id: string
-	readonly type: StyleType
+	id: string
+	type: StyleType
 	name: string
 	remove(): void
 }
@@ -1033,6 +1033,6 @@ interface GridStyle extends BaseStyle {
 // Other
 
 interface Image {
-	readonly hash: string
+	hash: string
 	getBytesAsync(): Promise<Uint8Array>
 }

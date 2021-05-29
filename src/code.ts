@@ -9,7 +9,7 @@ import {
 	convertSingleNodeToAlt,
 } from './altNodes/altConversion'
 import { clone } from './helper'
-import type { SFrameNode, SInstanceNode } from './nodes/types'
+import type { SFrameNode, SInstanceNode, SSceneNode } from './nodes/types'
 import { once, emit, on } from './utilities/events'
 import { createImagePaint } from './utilities/node/create-image-paint'
 import { pick } from './utilities/object/extract-attributes'
@@ -46,10 +46,6 @@ const run = () => {
 		figma.currentPage.selection,
 		null,
 	)
-	console.log(
-		'🇻🇳 ~ file: code.ts ~ line 46 ~ convertedSelection',
-		convertedSelection,
-	)
 
 	if (mode === 'tailwind') {
 		result = tailwindMain(convertedSelection, parentId, isJsx, layerName)
@@ -57,58 +53,58 @@ const run = () => {
 
 	emit('result', result)
 
-	if (mode === 'tailwind') {
-		emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode))
-		emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode))
-	}
-	if (mode === 'tailwind') {
-		emit('text', retrieveTailwindText(convertedSelection))
-	}
+	// if (mode === 'tailwind') {
+	// 	emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode))
+	// 	emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode))
+	// }
+	// if (mode === 'tailwind') {
+	// 	emit('text', retrieveTailwindText(convertedSelection))
+	// }
 }
 
-figma.on('selectionchange', () => {
+function handleNodeSelection() {
 	emit('selectionchange')
 	const selection = figma.currentPage.selection
 	const isSingleSelection = selection.length === 1
 
 	if (isSingleSelection) {
 		//  Can use convertIntoSNodes to achieved better node structure
-		switch (selection[0].type) {
-			case 'INSTANCE':
-				const includeComponent = ['Button']
-				const mainComponentName = selection[0].mainComponent.name
+		let node: SSceneNode = convertSingleNodeToAlt(selection[0], null)
+		node.children = []
 
-				if (includeComponent.includes(mainComponentName)) {
-					const node = pick(selection[0], ['id', 'type'])
-					let pluginData = []
-					try {
-						pluginData = JSON.parse(selection[0].getPluginData(selection[0].id))
-					} catch (error) {
-						pluginData = []
-					}
-
-					emit('selected', node, pluginData)
-				}
-				break
-			case 'FRAME':
-				const node = convertSingleNodeToAlt(selection[0], null)
-				console.log('🇻🇳 ~ file: code.ts ~ line 95 ~ node', node)
-
-				let pluginData = []
-				try {
-					pluginData = JSON.parse(selection[0].getPluginData(selection[0].id))
-				} catch (error) {
-					pluginData = []
-				}
-				console.log('🇻🇳 ~ file: code.ts ~ line 98 ~ pluginData', pluginData)
-				node.children = []
-				emit('selected', node, pluginData)
-			default:
-				break
+		if (node) {
+			emit('sceneNodeChange', node)
 		}
 	}
 
 	run()
+}
+
+figma.on('selectionchange', () => {
+	handleNodeSelection()
+})
+
+on('mount', () => {
+	handleNodeSelection()
+})
+
+on('sceneNodeChangeBack', (payload) => {
+	const { id, key, value } = payload
+	console.log('🇻🇳 ~ file: code.ts ~ line 122 ~ payload', payload)
+
+	function setPluginData({ id, key, value }) {
+		const screenNode = getSceneNodeById(id)
+		screenNode.setPluginData(key, JSON.stringify(value))
+	}
+
+	switch (key) {
+		case 'interactions':
+			setPluginData({ id, key, value })
+			break
+
+		default:
+			break
+	}
 })
 
 on('createInstance', (args) => {
@@ -126,48 +122,6 @@ on('createInstance', (args) => {
 
 	// figma.currentPage.selection = nodes
 	// figma.viewport.scrollAndZoomIntoView(nodes)
-})
-
-on('pluginDataChange', (id, value) => {
-	const screenNode = getSceneNodeById(id)
-	screenNode.setPluginData(id, JSON.stringify(value))
-})
-
-on('createInteraction', (sSceneNode) => {
-	const sInstanceNode: SInstanceNode = sSceneNode
-
-	const interactions: SInstanceNode['interactions'] = [
-		{
-			trigger: { type: 'ON_CLICK' },
-			action: { type: 'SELECT', option: 'A' },
-		},
-	]
-
-	const node = figma.getNodeById(sInstanceNode.id)
-
-	const pluginData = { interactions }
-
-	node.setPluginData(node.id, JSON.stringify(pluginData))
-	emit('pluginDataChange', node.id, pluginData)
-
-	node.setRelaunchData({
-		// open: 'Open this trapezoid with Shaper',
-		addOnClick: 'Add sigma interactions',
-	})
-})
-
-on('createFocusSection', (sSceneNode) => {
-	const sFrameNode: SFrameNode = sSceneNode
-
-	const focusSection: SFrameNode['focusSection'] = {
-		default: true,
-	}
-
-	const node = figma.getNodeById(sFrameNode.id)
-
-	const pluginData = { focusSection }
-	node.setPluginData(node.id, JSON.stringify(pluginData))
-	emit('pluginDataChange', node.id, pluginData)
 })
 
 on('tailwind', (args) => {
