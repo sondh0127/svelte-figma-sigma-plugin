@@ -196,16 +196,6 @@ const wrapInDirectionalStack = (
 	return `\n${rowOrColumn}(${layoutAlign}${spacing}) {${children}\n}`
 }
 
-// https://stackoverflow.com/a/20762713
-export const mostFrequent = (arr: Array<string>): string | undefined => {
-	return arr
-		.sort(
-			(a, b) =>
-				arr.filter((v) => v === a).length - arr.filter((v) => v === b).length,
-		)
-		.pop()
-}
-
 // todo should the plugin manually Group items? Ideally, it would detect the similarities and allow a ForEach.
 const widgetGeneratorWithLimits = (
 	node: AltFrameNode | AltGroupNode,

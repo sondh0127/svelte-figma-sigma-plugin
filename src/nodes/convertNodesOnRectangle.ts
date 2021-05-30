@@ -3,7 +3,7 @@ import type {
 	SGroupNode,
 	SRectangleNode,
 	SSceneNode,
-} from '../nodes/types'
+} from './types'
 
 import { convertToAutoLayout } from './convertToAutoLayout'
 

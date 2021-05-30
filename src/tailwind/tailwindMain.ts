@@ -16,6 +16,7 @@ import type {
 	SComponentNode,
 	SInstanceNode,
 } from '../nodes/types'
+import { tailwindSFrame, tailwindSRectangle } from './tailwindConversion'
 
 let parentId = ''
 let showLayerName = false
@@ -25,7 +26,6 @@ let scriptSet = new Set()
 export const tailwindMain = (
 	sceneNode: Array<SSceneNode>,
 	parentIdSrc: string = '',
-	isJsx: boolean = false,
 	layerName: boolean = false,
 ): string => {
 	scriptSet = new Set()
@@ -33,7 +33,8 @@ export const tailwindMain = (
 	showLayerName = layerName
 	const hasKeypad = true
 
-	let result = tailwindWidgetGenerator(sceneNode, isJsx)
+	let result = tailwindWidgetGenerator(sceneNode)
+	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 37 ~ result', result)
 
 	// remove the initial \n that is made in Container.
 	if (result.length > 0 && result.slice(0, 1) === '\n') {
@@ -65,9 +66,8 @@ export const tailwindMain = (
 }
 
 // todo lint idea: replace BorderRadius.only(topleft: 8, topRight: 8) with BorderRadius.horizontal(8)
-const tailwindWidgetGenerator = (
+export const tailwindWidgetGenerator = (
 	sceneNode: ReadonlyArray<SSceneNode>,
-	isJsx: boolean,
 ): string => {
 	let comp = ''
 
@@ -75,32 +75,53 @@ const tailwindWidgetGenerator = (
 	const visibleSceneNode = sceneNode.filter((d) => d.visible !== false)
 
 	visibleSceneNode.forEach((node) => {
-		if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-			comp += tailwindContainer(
-				node,
-				'',
-				'',
-				{ isRelative: false, isInput: false },
-				isJsx,
-			)
-		} else if (node.type === 'GROUP') {
-			comp += tailwindGroup(node, isJsx)
-		} else if (node.type === 'FRAME') {
-			comp += tailwindFrame(node, isJsx)
-		} else if (node.type === 'TEXT') {
-			comp += tailwindText(node, false, isJsx)
-		} else if (node.type === 'COMPONENT') {
-			comp += tailwindComponent(node)
-		} else if (node.type === 'INSTANCE') {
-			comp += tailwindInstance(node)
+		switch (node.type) {
+			case 'RECTANGLE':
+				// ignore the view when size is zero or less
+				// while technically it shouldn't get less than 0, due to rounding errors,
+				// it can get to values like: -0.000004196293048153166
+				if (node.width <= 0 || node.height <= 0) {
+					comp += ''
+				} else {
+					const tag = 'div'
+					const { clazz, style } = tailwindSRectangle(node, '')
+					let focusSection = ''
+
+					comp += `<${tag} class="${clazz}" style="${style}"></${tag}>`
+				}
+
+				break
+			// case 'FRAME': {
+			// 	comp += tailwindSFrame(node)
+			// 	break
+			// }
+
+			default:
+				break
 		}
+
+		// if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
+		// 	comp += tailwindContainer(node, '', '', {
+		// 		isRelative: false,
+		// 		isInput: false,
+		// 	})
+		// } else if (node.type === 'GROUP') {
+		// 	comp += tailwindGroup(node)
+		// } else if (node.type === 'FRAME') {
+		// } else if (node.type === 'TEXT') {
+		// 	comp += tailwindText(node, false)
+		// } else if (node.type === 'COMPONENT') {
+		// 	comp += tailwindComponent(node)
+		// } else if (node.type === 'INSTANCE') {
+		// 	comp += tailwindInstance(node)
+		// }
 		// todo support Line
 	})
 
 	return comp
 }
 
-const tailwindGroup = (node: SGroupNode, isJsx: boolean = false): string => {
+const tailwindGroup = (node: SGroupNode): string => {
 	// ignore the view when size is zero or less
 	// while technically it shouldn't get less than 0, due to rounding errors,
 	// it can get to values like: -0.000004196293048153166
@@ -109,11 +130,11 @@ const tailwindGroup = (node: SGroupNode, isJsx: boolean = false): string => {
 		return ''
 	}
 
-	const vectorIfExists = tailwindVector(node, showLayerName, parentId, isJsx)
+	const vectorIfExists = tailwindVector(node, showLayerName, parentId)
 	if (vectorIfExists) return vectorIfExists
 
 	// this needs to be called after CustomNode because widthHeight depends on it
-	const builder = new TailwindDefaultBuilder(node, showLayerName, isJsx)
+	const builder = new TailwindDefaultBuilder(node, showLayerName)
 		.blend(node)
 		.widthHeight(node)
 		.position(node, parentId)
@@ -121,22 +142,21 @@ const tailwindGroup = (node: SGroupNode, isJsx: boolean = false): string => {
 	if (builder.attributes || builder.style) {
 		const attr = builder.build('relative ')
 
-		const generator = tailwindWidgetGenerator(node.children, isJsx)
+		const generator = tailwindWidgetGenerator(node.children)
 
 		return `\n<div${attr}>${indentString(generator)}\n</div>`
 	}
 
-	return tailwindWidgetGenerator(node.children, isJsx)
+	return tailwindWidgetGenerator(node.children)
 }
 
 const tailwindText = (
 	node: STextNode,
 	isInput: boolean,
-	isJsx: boolean,
 ): string | [string, string] => {
 	// follow the website order, to make it easier
 
-	const builderResult = new TailwindTextBuilder(node, showLayerName, isJsx)
+	const builderResult = new TailwindTextBuilder(node, showLayerName)
 		.blend(node)
 		.textAutoSize(node)
 		.position(node, parentId)
@@ -215,7 +235,6 @@ const tailwindInstance = (node: SInstanceNode): string => {
 		return childrenStr
 	}
 
-	const isJsx = false
 	let isRelative = true
 	let additionalAttr = 'relative '
 
@@ -239,49 +258,6 @@ const tailwindInstance = (node: SInstanceNode): string => {
 	)}\n</${tag}>`
 }
 
-const tailwindFrame = (node: SFrameNode, isJsx: boolean): string => {
-	// const vectorIfExists = tailwindVector(node, isJsx);
-	// if (vectorIfExists) return vectorIfExists;
-
-	if (
-		node.children.length === 1 &&
-		node.children[0].type === 'TEXT' &&
-		node?.name?.toLowerCase().match('input')
-	) {
-		const [attr, char] = tailwindText(node.children[0], true, isJsx)
-		return tailwindContainer(
-			node,
-			` placeholder="${char}"`,
-			attr,
-			{ isRelative: false, isInput: true },
-			isJsx,
-		)
-	}
-
-	const childrenStr = tailwindWidgetGenerator(node.children, isJsx)
-
-	if (node.layoutMode !== 'NONE') {
-		const rowColumn = rowColumnProps(node)
-		return tailwindContainer(
-			node,
-			childrenStr,
-			rowColumn,
-			{ isRelative: false, isInput: false },
-			isJsx,
-		)
-	} else {
-		// node.layoutMode === "NONE" && node.children.length > 1
-		// children needs to be absolute
-		return tailwindContainer(
-			node,
-			childrenStr,
-			'relative ',
-			{ isRelative: true, isInput: false },
-			isJsx,
-		)
-	}
-}
-
 // properties named propSomething always take care of ","
 // sometimes a property might not exist, so it doesn't add ","
 export const tailwindContainer = (
@@ -292,7 +268,6 @@ export const tailwindContainer = (
 		isRelative: boolean
 		isInput: boolean
 	},
-	isJsx: boolean,
 ): string => {
 	// ignore the view when size is zero or less
 	// while technically it shouldn't get less than 0, due to rounding errors,
@@ -301,7 +276,7 @@ export const tailwindContainer = (
 		return children
 	}
 
-	const builder = new TailwindDefaultBuilder(node, showLayerName, isJsx)
+	const builder = new TailwindDefaultBuilder(node, showLayerName)
 		.blend(node)
 		.widthHeight(node)
 		.autoLayoutPadding(node)

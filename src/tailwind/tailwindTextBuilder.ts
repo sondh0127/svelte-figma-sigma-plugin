@@ -9,8 +9,8 @@ import { TailwindDefaultBuilder } from './tailwindDefaultBuilder'
 import { commonLetterSpacing } from '../common/commonTextHeightSpacing'
 
 export class TailwindTextBuilder extends TailwindDefaultBuilder {
-	constructor(node: AltTextNode, showLayerName: boolean, optIsJSX: boolean) {
-		super(node, showLayerName, optIsJSX)
+	constructor(node: AltTextNode, showLayerName: boolean) {
+		super(node, showLayerName)
 	}
 
 	// must be called before Position method

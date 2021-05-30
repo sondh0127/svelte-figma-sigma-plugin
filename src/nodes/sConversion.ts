@@ -1,4 +1,3 @@
-import { getBoundingRect } from '../altNodes/altConversion'
 import { computeBoundingBox } from '../utilities/node/compute-bounding-box'
 import { pick } from '../utilities/object/extract-attributes'
 import type {
@@ -26,8 +25,8 @@ import type {
 	SVectorNode,
 	STextNode,
 } from './types'
-import { convertToAutoLayout } from '../altNodes/convertToAutoLayout'
 import { cloneObject } from '../utilities/object/clone-object'
+import { getBoundingRect } from '../helper'
 
 const convertSLayout = (node: LayoutMixin): SLayoutMixin => {
 	// Get the correct X/Y position when rotation is applied.

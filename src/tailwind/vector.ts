@@ -22,7 +22,6 @@ export const tailwindVector = (
 // // todo support for ungroup vectors. This was reused because 80% of people are going
 // export const tailwindVector = (
 //   group: AltFrameNode | AltGroupNode,
-//   isJsx: Boolean
 // ) => {
 //   // to use Vectors in groups (like icons)
 

@@ -15,7 +15,7 @@ import {
 import { htmlColor, htmlGradient } from './../../html/builderImpl/htmlColor'
 import type { AltSceneNode } from '../../altNodes/altMixins'
 import { rgbTo6hex } from '../../common/color'
-import { notEmpty } from '../../altNodes/altConversion'
+import { notEmpty } from '../../helper'
 import {
 	calculateContrastRatio,
 	deepFlatten,

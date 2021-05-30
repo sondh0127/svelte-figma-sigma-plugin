@@ -4,10 +4,9 @@ import type {
 	SGroupNode,
 	SFrameNode,
 	SSceneNode,
-} from '../nodes/types'
-import { mostFrequent } from './../swiftui/swiftuiMain'
+} from './types'
 import { convertGroupToFrame } from './convertGroupToFrame'
-
+import { mostFrequent } from '../helper'
 /**
  * Add AutoLayout attributes if layout has items aligned (either vertically or horizontally).
  * To make the calculation, the average position of every child, ordered, needs to pass a threshold.

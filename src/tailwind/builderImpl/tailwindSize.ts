@@ -1,7 +1,6 @@
 import type { AltSceneNode } from '../../altNodes/altMixins'
 import { pxToLayoutSize } from '../conversionTables'
 import { nodeWidthHeight } from '../../common/nodeWidthHeight'
-import { formatWithJSX } from '../../common/parseJSX'
 import { numToAutoFixed } from '../../common/numToAutoFixed'
 
 export const tailwindSize = (node: AltSceneNode): string => {
@@ -50,16 +49,12 @@ export const tailwindSizePartial = (node: AltSceneNode): [string, string] => {
 /**
  * https://www.w3schools.com/css/css_dimension.asp
  */
-export const htmlSizeForTailwind = (
-	node: AltSceneNode,
-	isJSX: boolean,
-): string => {
-	return htmlSizePartialForTailwind(node, isJSX).join('')
+export const htmlSizeForTailwind = (node: AltSceneNode): string => {
+	return htmlSizePartialForTailwind(node).join('')
 }
 
 export const htmlSizePartialForTailwind = (
 	node: AltSceneNode,
-	isJSX: boolean,
 ): [string, string] => {
 	// todo refactor with formatWithJSX when more attribute to come
 	return [
@@ -68,7 +63,7 @@ export const htmlSizePartialForTailwind = (
 	]
 
 	// return [
-	//   formatWithJSX("width", isJSX, node.width),
-	//   formatWithJSX("height", isJSX, node.height),
+	//   formatWithJSX("width", node.width),
+	//   formatWithJSX("height", node.height),
 	// ];
 }

@@ -1,4 +1,4 @@
-import type { SFrameNode, SGroupNode, SSceneNode } from '../nodes/types'
+import type { SFrameNode, SGroupNode, SSceneNode } from './types'
 
 export const convertGroupToFrame = (node: SGroupNode): SFrameNode => {
 	const newNode: SFrameNode = {

@@ -6,8 +6,8 @@ import {
 import { tailwindMain } from './tailwind/tailwindMain'
 import {
 	convertIntoSNodes,
-	convertSingleNodeToAlt,
-} from './altNodes/altConversion'
+	convertIntoSingleSNode,
+} from './nodes/sConversionMain'
 import { clone } from './helper'
 import type { SFrameNode, SInstanceNode, SSceneNode } from './nodes/types'
 import { once, emit, on } from './utilities/events'
@@ -16,7 +16,6 @@ import { pick } from './utilities/object/extract-attributes'
 import { getSceneNodeById } from './utilities/node/get-nodes/get-scene-node-by-id'
 
 let parentId: string
-let isJsx = false
 let layerName = false
 
 let assets = {}
@@ -48,7 +47,7 @@ const run = () => {
 	)
 
 	if (mode === 'tailwind') {
-		result = tailwindMain(convertedSelection, parentId, isJsx, layerName)
+		result = tailwindMain(convertedSelection, parentId, layerName)
 	}
 
 	emit('result', result)
@@ -65,11 +64,12 @@ const run = () => {
 function handleNodeSelection() {
 	emit('selectionchange')
 	const selection = figma.currentPage.selection
+	console.log('🇻🇳 ~ file: code.ts ~ line 67 ~ selection', selection)
 	const isSingleSelection = selection.length === 1
 
 	if (isSingleSelection) {
 		//  Can use convertIntoSNodes to achieved better node structure
-		let node: SSceneNode = convertSingleNodeToAlt(selection[0], null)
+		let node: SSceneNode = convertIntoSingleSNode(selection[0], null)
 		node.children = []
 
 		if (node) {
@@ -132,16 +132,13 @@ on('tailwind', (args) => {
 	run()
 })
 
-on('jsx', (args) => {
-	if (args.data !== isJsx) {
-		isJsx = args.data
-		run()
-	}
-})
-
 on('layerName', (args) => {
 	if (args.data !== layerName) {
 		layerName = args.data
 		run()
 	}
+})
+
+on('refresh', () => {
+	run()
 })

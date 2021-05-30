@@ -33,14 +33,12 @@ export class TailwindDefaultBuilder {
 	attributes: string = ''
 	style: string
 	styleSeparator: string = ''
-	isJSX: boolean
 	visible: boolean
 	name: string = ''
 	hasFixedSize = false
 
-	constructor(node: AltSceneNode, showLayerName: boolean, optIsJSX: boolean) {
-		this.isJSX = optIsJSX
-		this.styleSeparator = this.isJSX ? ',' : ';'
+	constructor(node: AltSceneNode, showLayerName: boolean) {
+		this.styleSeparator = ';'
 		this.style = ''
 		this.visible = node.visible
 
@@ -50,9 +48,9 @@ export class TailwindDefaultBuilder {
 	}
 
 	blend(node: AltSceneNode): this {
-		this.attributes += tailwindVisibility(node)
+		this.attributes += tailwindVisibility(node) //
 		this.attributes += tailwindRotation(node)
-		this.attributes += tailwindOpacity(node)
+		this.attributes += tailwindOpacity(node) //
 
 		return this
 	}
@@ -80,8 +78,8 @@ export class TailwindDefaultBuilder {
 			const left = node.x - parentX
 			const top = node.y - parentY
 
-			this.style += formatWithJSX('left', this.isJSX, left)
-			this.style += formatWithJSX('top', this.isJSX, top)
+			this.style += formatWithJSX('left', left)
+			this.style += formatWithJSX('top', top)
 
 			if (!isRelative) {
 				this.attributes += 'absolute '
@@ -133,7 +131,7 @@ export class TailwindDefaultBuilder {
 		// or current element is one of the absoltue children and has a width or height > w/h-64
 
 		if ('isRelative' in node && node.isRelative === true) {
-			this.style += htmlSizeForTailwind(node, this.isJSX)
+			this.style += htmlSizeForTailwind(node)
 		} else if (
 			node.parent?.isRelative === true ||
 			node.width > 384 ||
@@ -142,10 +140,7 @@ export class TailwindDefaultBuilder {
 			// to avoid mixing html and tailwind sizing too much, only use html sizing when absolutely necessary.
 			// therefore, if only one attribute is larger than 256, only use the html size in there.
 			const [tailwindWidth, tailwindHeight] = tailwindSizePartial(node)
-			const [htmlWidth, htmlHeight] = htmlSizePartialForTailwind(
-				node,
-				this.isJSX,
-			)
+			const [htmlWidth, htmlHeight] = htmlSizePartialForTailwind(node)
 
 			// when textAutoResize is NONE or WIDTH_AND_HEIGHT, it has a defined width.
 			if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
@@ -208,16 +203,12 @@ export class TailwindDefaultBuilder {
 		this.removeTrailingSpace()
 
 		if (this.style) {
-			if (this.isJSX) {
-				this.style = ` style={{${this.style}}}`
-			} else {
-				this.style = ` style="${this.style}"`
-			}
+			this.style = ` style="${this.style}"`
 		}
 		if (!this.attributes && !this.style) {
 			return ''
 		}
-		const classOrClassName = this.isJSX ? 'className' : 'class'
+		const classOrClassName = 'class'
 		return ` ${classOrClassName}="${this.attributes}"${this.style}`
 	}
 

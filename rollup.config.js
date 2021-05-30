@@ -9,6 +9,7 @@ import css from 'rollup-plugin-css-only'
 import html from 'rollup-plugin-bundle-html-thomzz'
 import svg from 'rollup-plugin-svg'
 import image from '@rollup/plugin-image'
+import { nodeResolve } from '@rollup/plugin-node-resolve'
 
 const production = !process.env.ROLLUP_WATCH
 
@@ -117,6 +118,6 @@ export default [
 			format: 'cjs',
 			name: 'code',
 		},
-		plugins: [typescript(), commonjs(), production && terser()],
+		plugins: [typescript(), commonjs(), nodeResolve(), production && terser()],
 	},
 ]

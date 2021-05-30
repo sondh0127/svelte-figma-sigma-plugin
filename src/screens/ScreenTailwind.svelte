@@ -85,14 +85,9 @@
 		codeData = result
 	})
 
-	let jsx = false
-	$: if (jsx || !jsx) {
-		emit('jsx', { data: jsx })
-	}
-
 	let layerName = false
 	$: if (layerName || !layerName) {
-		emit('jsx', { data: layerName })
+		emit('layerName', { data: layerName })
 	}
 
 	const dispatch = createEventDispatcher()
@@ -152,6 +147,9 @@
 		// $pluginData[sSceneNode.id] = { focusSection }
 	}
 	function removeFocusSection() {}
+	function refresh() {
+		emit('refresh')
+	}
 
 	const sectionStyle = 'border rounded-lg bg-white'
 </script>
@@ -180,6 +178,7 @@
 							<Button variant="primary" on:click={clipboard(codeObservable)}>
 								Copy
 							</Button>
+							<Button variant="primary" on:click={refresh}>Refresh</Button>
 						</div>
 
 						<Prism language="svelte" source={codeObservable} />
@@ -188,8 +187,6 @@
 							class="flex items-center content-center justify-end mx-2 mb-2 space-x-8"
 						>
 							<Switch bind:checked={layerName} id="layerName">LayerName</Switch>
-
-							<Switch bind:checked={jsx} id="jsx">JSX</Switch>
 						</div>
 					</div>
 					<div class="h-2" />
