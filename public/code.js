@@ -1,5 +1,111 @@
 'use strict';
 
+const nearestValue = (goal, array) => {
+    return array.reduce(function (prev, curr) {
+        return Math.abs(curr - goal) < Math.abs(prev - goal) ? curr : prev;
+    });
+};
+/**
+ * convert pixel values to Tailwind attributes.
+ * by default, Tailwind uses rem, while Figma uses px.
+ * Therefore, a conversion is necessary. Rem = Pixel / 16.abs
+ * Then, find in the corresponding table the closest value.
+ */
+const pixelToTailwindValue = (value, conversionMap) => {
+    return conversionMap[nearestValue(value / 16, Object.keys(conversionMap).map((d) => +d))];
+};
+const mapLetterSpacing = {
+    '-0.05': 'tighter',
+    '-0.025': 'tight',
+    // 0: "normal",
+    0.025: 'wide',
+    0.05: 'wider',
+    0.1: 'widest',
+};
+const mapLineHeight = {
+    0.75: '3',
+    1: 'none',
+    1.25: 'tight',
+    1.375: 'snug',
+    1.5: 'normal',
+    1.625: 'relaxed',
+    2: 'loose',
+    1.75: '7',
+    2.25: '9',
+    2.5: '10',
+};
+const mapFontSize = {
+    0.75: 'xs',
+    0.875: 'sm',
+    1: 'base',
+    1.125: 'lg',
+    1.25: 'xl',
+    1.5: '2xl',
+    1.875: '3xl',
+    2.25: '4xl',
+    3: '5xl',
+    3.75: '6xl',
+    4.5: '7xl',
+    6: '8xl',
+    8: '9xl',
+};
+const mapBorderRadius = {
+    // 0: "none",
+    0.125: '-sm',
+    0.25: '',
+    0.375: '-md',
+    0.5: '-lg',
+    0.75: '-xl',
+    1.0: '-2xl',
+    1.5: '-3xl',
+    10: '-full',
+};
+const mapWidthHeightSize = {
+    // 0: "0",
+    0.125: '0.5',
+    0.25: '1',
+    0.375: '1.5',
+    0.5: '2',
+    0.625: '2.5',
+    0.75: '3',
+    0.875: '3.5',
+    1: '4',
+    1.25: '5',
+    1.5: '6',
+    1.75: '7',
+    2: '8',
+    2.25: '9',
+    2.5: '10',
+    2.75: '11',
+    3: '12',
+    3.5: '14',
+    4: '16',
+    5: '20',
+    6: '24',
+    7: '28',
+    8: '32',
+    9: '36',
+    10: '40',
+    11: '44',
+    12: '48',
+    13: '52',
+    14: '56',
+    15: '60',
+    16: '64',
+    18: '72',
+    20: '80',
+    24: '96',
+};
+const opacityValues = [
+    0, 5, 10, 20, 25, 30, 40, 50, 60, 70, 75, 80, 90, 95,
+];
+const nearestOpacity = (nodeOpacity) => nearestValue(nodeOpacity * 100, opacityValues);
+const pxToLetterSpacing = (value) => pixelToTailwindValue(value, mapLetterSpacing);
+const pxToLineHeight = (value) => pixelToTailwindValue(value, mapLineHeight);
+const pxToFontSize = (value) => pixelToTailwindValue(value, mapFontSize);
+const pxToBorderRadius = (value) => pixelToTailwindValue(value, mapBorderRadius);
+const pxToLayoutSize = (value) => pixelToTailwindValue(value, mapWidthHeightSize);
+
 // https://github.com/dtao/nearest-color converted to ESM and Typescript
 // It was sligtly modified to support Typescript better.
 // It was also slighly simplified because many parts weren't being used.
@@ -218,6 +324,140 @@ function createColorSpec(input) {
     };
 }
 
+/**
+ * Retrieve the first visible color that is being used by the layer, in case there are more than one.
+ */
+const retrieveTopFill = (fills) => {
+    if (fills && fills !== figma.mixed && fills.length > 0) {
+        // on Figma, the top layer is always at the last position
+        // reverse, then try to find the first layer that is visible, if any.
+        return [...fills].reverse().find((d) => d.visible !== false);
+    }
+};
+
+const gradientAngle = (fill) => {
+    // Thanks Gleb and Liam for helping!
+    const decomposed = decomposeRelativeTransform(fill.gradientTransform[0], fill.gradientTransform[1]);
+    return (decomposed.rotation * 180) / Math.PI;
+};
+// from https://math.stackexchange.com/a/2888105
+const decomposeRelativeTransform = (t1, t2) => {
+    const a = t1[0];
+    const b = t1[1];
+    const c = t1[2];
+    const d = t2[0];
+    const e = t2[1];
+    const f = t2[2];
+    const delta = a * d - b * c;
+    const result = {
+        translation: [e, f],
+        rotation: 0,
+        scale: [0, 0],
+        skew: [0, 0],
+    };
+    // Apply the QR-like decomposition.
+    if (a !== 0 || b !== 0) {
+        const r = Math.sqrt(a * a + b * b);
+        result.rotation = b > 0 ? Math.acos(a / r) : -Math.acos(a / r);
+        result.scale = [r, delta / r];
+        result.skew = [Math.atan((a * c + b * d) / (r * r)), 0];
+    }
+    // these are not currently being used.
+    // else if (c != 0 || d != 0) {
+    //   const s = Math.sqrt(c * c + d * d);
+    //   result.rotation =
+    //     Math.PI / 2 - (d > 0 ? Math.acos(-c / s) : -Math.acos(c / s));
+    //   result.scale = [delta / s, s];
+    //   result.skew = [0, Math.atan((a * c + b * d) / (s * s))];
+    // } else {
+    //   // a = b = c = d = 0
+    // }
+    return result;
+};
+
+// retrieve the SOLID color for tailwind
+const tailwindColorFromFills = (fills, kind) => {
+    // kind can be text, bg, border...
+    // [when testing] fills can be undefined
+    const fill = retrieveTopFill(fills);
+    if ((fill === null || fill === void 0 ? void 0 : fill.type) === 'SOLID') {
+        // don't set text color when color is black (default) and opacity is 100%
+        return tailwindSolidColor(fill, kind);
+    }
+    return '';
+};
+const tailwindSolidColor = (fill, kind) => {
+    var _a;
+    // don't set text color when color is black (default) and opacity is 100%
+    if (kind === 'text' &&
+        fill.color.r === 0.0 &&
+        fill.color.g === 0.0 &&
+        fill.color.b === 0.0 &&
+        fill.opacity === 1.0) {
+        return '';
+    }
+    const opacity = (_a = fill.opacity) !== null && _a !== void 0 ? _a : 1.0;
+    // example: text-opacity-50
+    // ignore the 100. If opacity was changed, let it be visible.
+    const opacityProp = opacity !== 1.0 ? `${kind}-opacity-${nearestOpacity(opacity)} ` : '';
+    // example: text-red-500
+    const colorProp = `${kind}-${getTailwindFromFigmaRGB(fill.color)} `;
+    // if fill isn't visible, it shouldn't be painted.
+    return `${colorProp}${opacityProp}`;
+};
+/**
+ * https://tailwindcss.com/docs/box-shadow/
+ * example: shadow
+ */
+const tailwindGradientFromFills = (fills) => {
+    // [when testing] node.effects can be undefined
+    const fill = retrieveTopFill(fills);
+    if ((fill === null || fill === void 0 ? void 0 : fill.type) === 'GRADIENT_LINEAR') {
+        return tailwindGradient(fill);
+    }
+    return '';
+};
+const tailwindGradient = (fill) => {
+    const direction = gradientDirection(gradientAngle(fill));
+    if (fill.gradientStops.length === 1) {
+        const fromColor = getTailwindFromFigmaRGB(fill.gradientStops[0].color);
+        return `${direction} from-${fromColor} `;
+    }
+    else if (fill.gradientStops.length === 2) {
+        const fromColor = getTailwindFromFigmaRGB(fill.gradientStops[0].color);
+        const toColor = getTailwindFromFigmaRGB(fill.gradientStops[1].color);
+        return `${direction} from-${fromColor} to-${toColor} `;
+    }
+    else {
+        const fromColor = getTailwindFromFigmaRGB(fill.gradientStops[0].color);
+        // middle (second color)
+        const viaColor = getTailwindFromFigmaRGB(fill.gradientStops[1].color);
+        // last
+        const toColor = getTailwindFromFigmaRGB(fill.gradientStops[fill.gradientStops.length - 1].color);
+        return `${direction} from-${fromColor} via-${viaColor} to-${toColor} `;
+    }
+};
+const gradientDirection = (angle) => {
+    switch (nearestValue(angle, [-180, -135, -90, -45, 0, 45, 90, 135, 180])) {
+        case 0:
+            return 'bg-gradient-to-r';
+        case 45:
+            return 'bg-gradient-to-br';
+        case 90:
+            return 'bg-gradient-to-b';
+        case 135:
+            return 'bg-gradient-to-bl';
+        case -45:
+            return 'bg-gradient-to-tr';
+        case -90:
+            return 'bg-gradient-to-t';
+        case -135:
+            return 'bg-gradient-to-tl';
+        default:
+            // 180 and -180
+            return 'bg-gradient-to-l';
+    }
+};
 // Basic Tailwind Colors
 const tailwindColors = {
     '#000000': 'black',
@@ -303,12 +543,1074 @@ const tailwindColors = {
     '#1f2937': 'gray-800',
     '#111827': 'gray-900',
 };
-nearestColorFrom(Object.keys(tailwindColors));
+const tailwindNearestColor = nearestColorFrom(Object.keys(tailwindColors));
+// figma uses r,g,b in [0, 1], while nearestColor uses it in [0, 255]
+const getTailwindFromFigmaRGB = (color) => {
+    const colorMultiplied = {
+        r: color.r * 255,
+        g: color.g * 255,
+        b: color.b * 255,
+    };
+    return tailwindColors[tailwindNearestColor(colorMultiplied)];
+};
+
+const commonLineHeight = (node) => {
+    if (node.lineHeight !== figma.mixed &&
+        node.lineHeight.unit !== 'AUTO' &&
+        Math.round(node.lineHeight.value) !== 0) {
+        if (node.lineHeight.unit === 'PIXELS') {
+            return node.lineHeight.value;
+        }
+        else {
+            if (node.fontSize !== figma.mixed) {
+                // based on tests, using Inter font with varied sizes and weights, this works.
+                // example: 24 * 20 / 100 = 4.8px, which is correct visually.
+                return (node.fontSize * node.lineHeight.value) / 100;
+            }
+        }
+    }
+    return 0;
+};
+const commonLetterSpacing = (node) => {
+    if (node.letterSpacing !== figma.mixed &&
+        Math.round(node.letterSpacing.value) !== 0) {
+        if (node.letterSpacing.unit === 'PIXELS') {
+            return node.letterSpacing.value;
+        }
+        else {
+            if (node.fontSize !== figma.mixed) {
+                // read [commonLineHeight] comment to understand what is going on here.
+                return (node.fontSize * node.letterSpacing.value) / 100;
+            }
+        }
+    }
+    return 0;
+};
+
+/**
+ * https://tailwindcss.com/docs/box-shadow/
+ * example: shadow
+ */
+const tailwindShadow = (node) => {
+    // [when testing] node.effects can be undefined
+    if (node.effects && node.effects.length > 0) {
+        const dropShadow = node.effects.filter((d) => d.type === 'DROP_SHADOW' && d.visible !== false);
+        let boxShadow = '';
+        // simple shadow from tailwind
+        if (dropShadow.length > 0) {
+            boxShadow = 'shadow ';
+        }
+        const innerShadow = node.effects.filter((d) => d.type === 'INNER_SHADOW')
+            .length > 0
+            ? 'shadow-inner '
+            : '';
+        return boxShadow + innerShadow;
+        // todo customize the shadow
+        // TODO layer blur, shadow-outline
+    }
+    return '';
+};
+
+/**
+ * https://tailwindcss.com/docs/opacity/
+ * default is [0, 25, 50, 75, 100], but '100' will be ignored:
+ * if opacity was changed, let it be visible. Therefore, 98% => 75
+ * node.opacity is between [0, 1]; output will be [0, 100]
+ */
+const tailwindOpacity = (node) => {
+    // [when testing] node.opacity can be undefined
+    if (node.opacity !== undefined && node.opacity !== 1) {
+        return `opacity-${nearestOpacity(node.opacity)} `;
+    }
+    return '';
+};
+/**
+ * https://tailwindcss.com/docs/visibility/
+ * example: invisible
+ */
+const tailwindVisibility = (node) => {
+    // [when testing] node.visible can be undefined
+    // When something is invisible in Figma, it isn't gone. Groups can make use of it.
+    // Therefore, instead of changing the visibility (which causes bugs in nested divs),
+    // this plugin is going to ignore color and stroke
+    if (node.visible !== undefined && !node.visible) {
+        return 'invisible ';
+    }
+    return '';
+};
+/**
+ * https://tailwindcss.com/docs/rotate/
+ * default is [-180, -90, -45, 0, 45, 90, 180], but '0' will be ignored:
+ * if rotation was changed, let it be perceived. Therefore, 1 => 45
+ */
+const tailwindRotation = (node) => {
+    // that's how you convert angles to clockwise radians: angle * -pi/180
+    // using 3.14159 as Pi for enough precision and to avoid importing math lib.
+    if (node.rotation !== undefined && Math.round(node.rotation) !== 0) {
+        const allowedValues = [
+            -180, -90, -45, -12, -6, -3, -2, -1, 1, 2, 3, 6, 12, 45, 90, 180,
+        ];
+        let nearest = nearestValue(node.rotation, allowedValues);
+        let minusIfNegative = '';
+        if (nearest < 0) {
+            minusIfNegative = '-';
+            nearest = -nearest;
+        }
+        return `transform ${minusIfNegative}rotate-${nearest} `;
+    }
+    return '';
+};
+
+/**
+ * https://tailwindcss.com/docs/border-width/
+ * example: border-2
+ */
+const tailwindBorderWidth = (node) => {
+    // [node.strokeWeight] can have a value even when there are no strokes
+    // [when testing] node.effects can be undefined
+    if (node.strokes && node.strokes.length > 0 && node.strokeWeight > 0) {
+        const allowedValues = [1, 2, 4, 8];
+        const nearest = nearestValue(node.strokeWeight, allowedValues);
+        if (nearest === 1) {
+            // special case
+            return 'border ';
+        }
+        else {
+            return `border-${nearest} `;
+        }
+    }
+    return '';
+};
+/**
+ * https://tailwindcss.com/docs/border-radius/
+ * example: rounded-sm
+ * example: rounded-tr-lg
+ */
+const tailwindBorderRadius = (node) => {
+    if (node.type === 'ELLIPSE') {
+        return 'rounded-full ';
+    }
+    else if ((!('cornerRadius' in node) && !('topLeftRadius' in node)) ||
+        (node.cornerRadius === figma.mixed && node.topLeftRadius === undefined) ||
+        node.cornerRadius === 0) {
+        // the second condition is used on tests. On Figma, topLeftRadius is never undefined.
+        // ignore when 0, undefined or non existent
+        return '';
+    }
+    let comp = '';
+    if (node.cornerRadius !== figma.mixed) {
+        if (node.cornerRadius >= node.height / 2) {
+            // special case. If height is 90 and cornerRadius is 45, it is full.
+            comp += 'rounded-full ';
+        }
+        else {
+            comp += `rounded${pxToBorderRadius(node.cornerRadius)} `;
+        }
+    }
+    else {
+        // todo optimize for tr/tl/br/bl instead of t/r/l/b
+        if (node.topLeftRadius !== 0) {
+            comp += `rounded-tl${pxToBorderRadius(node.topLeftRadius)} `;
+        }
+        if (node.topRightRadius !== 0) {
+            comp += `rounded-tr${pxToBorderRadius(node.topRightRadius)} `;
+        }
+        if (node.bottomLeftRadius !== 0) {
+            comp += `rounded-bl${pxToBorderRadius(node.bottomLeftRadius)} `;
+        }
+        if (node.bottomRightRadius !== 0) {
+            comp += `rounded-br${pxToBorderRadius(node.bottomRightRadius)} `;
+        }
+    }
+    return comp;
+};
+
+/**
+ * In Figma, Groups have absolute position while Frames have relative.
+ * This is a helper to retrieve the node.parent.x without worries.
+ * Usually, after this is called, node.x - parentX is done to solve that scenario.
+ *
+ * Input is expected to be node.parent.
+ */
+const parentCoordinates = (node) => {
+    const parentX = 'layoutMode' in node ? 0 : node.x;
+    const parentY = 'layoutMode' in node ? 0 : node.y;
+    return [parentX, parentY];
+};
+
+const commonPosition = (node) => {
+    // if node is same size as height, position is not necessary
+    var _a, _b, _c, _d;
+    // detect if Frame's width is same as Child when Frame has Padding.
+    // warning: this may return true even when false, if size is same, but position is different. However, it would be an unexpected layout.
+    let hPadding = 0;
+    let vPadding = 0;
+    if (node.parent && 'layoutMode' in node.parent) {
+        hPadding = ((_a = node.parent.paddingLeft) !== null && _a !== void 0 ? _a : 0) + ((_b = node.parent.paddingRight) !== null && _b !== void 0 ? _b : 0);
+        vPadding = ((_c = node.parent.paddingTop) !== null && _c !== void 0 ? _c : 0) + ((_d = node.parent.paddingBottom) !== null && _d !== void 0 ? _d : 0);
+    }
+    if (!node.parent ||
+        (node.width === node.parent.width - hPadding &&
+            node.height === node.parent.height - vPadding)) {
+        return '';
+    }
+    // position is absolute, parent is relative
+    // return "absolute inset-0 m-auto ";
+    const [parentX, parentY] = parentCoordinates(node.parent);
+    // if view is too small, anything will be detected; this is necessary to reduce the tolerance.
+    let threshold = 8;
+    if (node.width < 16 || node.height < 16) {
+        threshold = 1;
+    }
+    // < 4 is a threshold. If === is used, there can be rounding errors (28.002 !== 28)
+    const centerX = Math.abs(2 * (node.x - parentX) + node.width - node.parent.width) <
+        threshold;
+    const centerY = Math.abs(2 * (node.y - parentY) + node.height - node.parent.height) <
+        threshold;
+    const minX = node.x - parentX < threshold;
+    const minY = node.y - parentY < threshold;
+    const maxX = node.parent.width - (node.x - parentX + node.width) < threshold;
+    const maxY = node.parent.height - (node.y - parentY + node.height) < threshold;
+    // this needs to be on top, because Tailwind is incompatible with Center, so this will give preference.
+    if (minX && minY) {
+        // x left, y top
+        return 'TopStart';
+    }
+    else if (minX && maxY) {
+        // x left, y bottom
+        return 'BottomStart';
+    }
+    else if (maxX && minY) {
+        // x right, y top
+        return 'TopEnd';
+    }
+    else if (maxX && maxY) {
+        // x right, y bottom
+        return 'BottomEnd';
+    }
+    if (centerX && centerY) {
+        return 'Center';
+    }
+    if (centerX) {
+        if (minY) {
+            // x center, y top
+            return 'TopCenter';
+        }
+        if (maxY) {
+            // x center, y bottom
+            return 'BottomCenter';
+        }
+    }
+    else if (centerY) {
+        if (minX) {
+            // x left, y center
+            return 'CenterStart';
+        }
+        if (maxX) {
+            // x right, y center
+            return 'CenterEnd';
+        }
+    }
+    return 'Absolute';
+};
+
+const tailwindPosition = (node, parentId = '', hasFixedSize = false) => {
+    // don't add position to the first (highest) node in the tree
+    if (!node.parent || parentId === node.parent.id) {
+        return '';
+    }
+    // Group
+    if (node.parent.isRelative === true) {
+        // position is absolute, needs to be relative
+        return retrieveAbsolutePos(node, hasFixedSize);
+    }
+    return '';
+};
+const retrieveAbsolutePos = (node, hasFixedSize) => {
+    // everything related to Center requires a defined width and height. Therefore, we use hasFixedSize.
+    switch (commonPosition(node)) {
+        case '':
+            return '';
+        case 'Absolute':
+            return 'absoluteManualLayout';
+        case 'TopCenter':
+            if (hasFixedSize) {
+                return 'absolute inset-x-0 top-0 mx-auto ';
+            }
+            return 'absoluteManualLayout';
+        case 'CenterStart':
+            if (hasFixedSize) {
+                return 'absolute inset-y-0 left-0 my-auto ';
+            }
+            return 'absoluteManualLayout';
+        case 'Center':
+            if (hasFixedSize) {
+                return 'absolute m-auto inset-0 ';
+            }
+            return 'absoluteManualLayout';
+        case 'CenterEnd':
+            if (hasFixedSize) {
+                return 'absolute inset-y-0 right-0 my-auto ';
+            }
+            return 'absoluteManualLayout';
+        case 'BottomCenter':
+            if (hasFixedSize) {
+                return 'absolute inset-x-0 bottom-0 mx-auto ';
+            }
+            return 'absoluteManualLayout';
+        case 'TopStart':
+            return 'absolute left-0 top-0 ';
+        case 'TopEnd':
+            return 'absolute right-0 top-0 ';
+        case 'BottomStart':
+            return 'absolute left-0 bottom-0 ';
+        case 'BottomEnd':
+            return 'absolute right-0 bottom-0 ';
+    }
+};
+
+const nodeWidthHeight = (node, allowRelative) => {
+    /// WIDTH AND HEIGHT
+    var _a;
+    // if parent is a page, width can't get past w-64, therefore let it be free
+    // if (node.parent?.type === "PAGE" && node.width > 256) {
+    //   return "";
+    // }
+    if (node.layoutAlign === 'STRETCH' && node.layoutGrow === 1) {
+        return {
+            width: 'full',
+            height: 'full',
+        };
+    }
+    const [nodeWidth, nodeHeight] = getNodeSizeWithStrokes(node);
+    let propWidth = nodeWidth;
+    let propHeight = nodeHeight;
+    if (node.parent && 'layoutMode' in node.parent) {
+        // Stretch means the opposite direction
+        if (node.layoutAlign === 'STRETCH') {
+            switch (node.parent.layoutMode) {
+                case 'HORIZONTAL':
+                    propHeight = 'full';
+                    break;
+                case 'VERTICAL':
+                    propWidth = 'full';
+                    break;
+            }
+        }
+        // Grow means the same direction
+        if (node.layoutGrow === 1) {
+            if (node.parent.layoutMode === 'HORIZONTAL') {
+                propWidth = 'full';
+            }
+            else {
+                propHeight = 'full';
+            }
+        }
+    }
+    // avoid relative width when parent is relative (therefore, child is probably absolute, which doesn't work nice)
+    // ignore for root layer
+    // todo should this be kept this way? The issue is w-full which doesn't work well with absolute position.
+    if (allowRelative && ((_a = node.parent) === null || _a === void 0 ? void 0 : _a.isRelative) !== true) {
+        // don't calculate again if it was already calculated
+        if (propWidth !== 'full') {
+            const rW = calculateResponsiveWH(node, nodeWidth, 'x');
+            if (rW) {
+                propWidth = rW;
+            }
+        }
+        if (propHeight !== 'full') {
+            const rH = calculateResponsiveWH(node, nodeHeight, 'y');
+            if (rH && node.parent) {
+                propHeight = rH;
+            }
+        }
+    }
+    // when any child has a relative width and parent is HORIZONTAL,
+    // parent must have a defined width, which wouldn't otherwise.
+    // todo check if the performance impact of this is worth it.
+    // const hasRelativeChildW =
+    //   allowRelative &&
+    //   "children" in node &&
+    //   node.children.find((d) =>
+    //     calculateResponsiveWH(d, getNodeSizeWithStrokes(d)[0], "x")
+    //   ) !== undefined;
+    // when the child has the same size as the parent, don't set the size of the parent (twice)
+    if ('children' in node && node.children && node.children.length === 1) {
+        const child = node.children[0];
+        // detect if Frame's width is same as Child when Frame has Padding.
+        let hPadding = 0;
+        let vPadding = 0;
+        if ('layoutMode' in node) {
+            hPadding = node.paddingLeft + node.paddingRight;
+            vPadding = node.paddingTop + node.paddingBottom;
+        }
+        // set them independently, in case w is equal but h isn't
+        if (child.width === nodeWidth - hPadding) ;
+        if (child.height === nodeHeight - vPadding) ;
+    }
+    if ('layoutMode' in node) {
+        if ((node.layoutMode === 'HORIZONTAL' &&
+            node.counterAxisSizingMode === 'AUTO') ||
+            (node.layoutMode === 'VERTICAL' && node.primaryAxisSizingMode === 'AUTO')) {
+            propHeight = null;
+        }
+        if ((node.layoutMode === 'VERTICAL' &&
+            node.counterAxisSizingMode === 'AUTO') ||
+            (node.layoutMode === 'HORIZONTAL' &&
+                node.primaryAxisSizingMode === 'AUTO')) {
+            propWidth = null;
+        }
+    }
+    // On Tailwind, do not let the size be larger than 384.
+    if (allowRelative) {
+        if ((node.type !== 'RECTANGLE' && nodeHeight > 384) ||
+            childLargerThanMaxSize(node, 'y')) {
+            propHeight = null;
+        }
+        else if ((node.type !== 'RECTANGLE' && nodeWidth > 384) ||
+            childLargerThanMaxSize(node, 'x')) {
+            propWidth = null;
+        }
+    }
+    if ('layoutMode' in node && node.layoutMode !== 'NONE') {
+        // there is an edge case: frame with no children, layoutMode !== NONE and counterAxis = AUTO, but:
+        // in [altConversions] it is already solved: Frame without children becomes a Rectangle.
+        switch (node.layoutMode) {
+            case 'HORIZONTAL':
+                return {
+                    width: node.primaryAxisSizingMode === 'FIXED' ? propWidth : null,
+                    height: node.counterAxisSizingMode === 'FIXED' ? propHeight : null,
+                };
+            case 'VERTICAL':
+                return {
+                    width: node.counterAxisSizingMode === 'FIXED' ? propWidth : null,
+                    height: node.primaryAxisSizingMode === 'FIXED' ? propHeight : null,
+                };
+        }
+    }
+    else {
+        return {
+            width: propWidth,
+            height: propHeight,
+        };
+    }
+};
+// makes the view size bigger when there is a stroke
+const getNodeSizeWithStrokes = (node) => {
+    let nodeHeight = node.height;
+    let nodeWidth = node.width;
+    // tailwind doesn't support OUTSIDE or CENTER, only INSIDE.
+    // Therefore, to give the same feeling, the height and width will be slighly increased.
+    // node.strokes.lenght is necessary because [strokeWeight] can exist even without strokes.
+    if ('strokes' in node && node.strokes && node.strokes.length) {
+        if (node.strokeAlign === 'OUTSIDE') {
+            nodeHeight += node.strokeWeight * 2;
+            nodeWidth += node.strokeWeight * 2;
+        }
+        else if (node.strokeAlign === 'CENTER') {
+            nodeHeight += node.strokeWeight;
+            nodeWidth += node.strokeWeight;
+        }
+    }
+    if ('children' in node) {
+        // if any children has an OUTSIDE or CENTER stroke and, with that stroke,
+        // the child gets a size bigger than parent, adjust parent to be larger
+        node.children.forEach((d) => {
+            var _a;
+            if ('strokeWeight' in d && ((_a = d.strokes) === null || _a === void 0 ? void 0 : _a.length) > 0) {
+                if (d.strokeAlign === 'OUTSIDE') {
+                    if (nodeWidth < d.width + d.strokeWeight * 2) {
+                        nodeWidth += d.strokeWeight * 2;
+                    }
+                    if (nodeHeight < d.height + d.strokeWeight * 2) {
+                        nodeHeight += d.strokeWeight * 2;
+                    }
+                }
+                else if (d.strokeAlign === 'CENTER') {
+                    if (nodeWidth < d.width + d.strokeWeight) {
+                        nodeWidth += d.strokeWeight;
+                    }
+                    if (nodeHeight < d.height + d.strokeWeight) {
+                        nodeHeight += d.strokeWeight;
+                    }
+                }
+            }
+        });
+    }
+    return [nodeWidth, nodeHeight];
+};
+const childLargerThanMaxSize = (node, axis) => {
+    if ('children' in node && node.children.length > 0) {
+        const widthHeight = axis === 'x' ? 'width' : 'height';
+        const lastChild = node.children[node.children.length - 1];
+        const maxLen = lastChild[axis] + lastChild[widthHeight] - node.children[0][axis];
+        return maxLen > 384;
+    }
+    return false;
+};
+const calculateResponsiveWH = (node, nodeWidthHeight, axis) => {
+    let returnValue = '';
+    if (nodeWidthHeight > 384 || childLargerThanMaxSize(node, axis)) {
+        returnValue = 'full';
+    }
+    if (!node.parent) {
+        return returnValue;
+    }
+    let parentWidthHeight;
+    if ('layoutMode' in node.parent && node.parent.layoutMode !== 'NONE') {
+        if (axis === 'x') {
+            // subtract padding from the layout width, so it can be full when compared with parent.
+            parentWidthHeight =
+                node.parent.width - node.parent.paddingLeft - node.parent.paddingRight;
+        }
+        else {
+            // subtract padding from the layout height, so it can be full when compared with parent.
+            parentWidthHeight =
+                node.parent.height - node.parent.paddingTop - node.parent.paddingBottom;
+        }
+    }
+    else {
+        parentWidthHeight = axis === 'x' ? node.parent.width : node.parent.height;
+    }
+    // 0.01 of tolerance is enough for 5% of diff, i.e.: 804 / 400
+    const dividedWidth = nodeWidthHeight / parentWidthHeight;
+    const calculateResp = (div, str) => {
+        if (Math.abs(dividedWidth - div) < 0.01) {
+            returnValue = str;
+            return true;
+        }
+        return false;
+    };
+    // they will try to set the value, and if false keep calculating
+    const checkList = [
+        [1, 'full'],
+        [1 / 2, '1/2'],
+        [1 / 3, '1/3'],
+        [2 / 3, '2/3'],
+        [1 / 4, '1/4'],
+        [3 / 4, '3/4'],
+        [1 / 5, '1/5'],
+        [1 / 6, '1/6'],
+        [5 / 6, '5/6'],
+    ];
+    // exit the for when result is found.
+    let resultFound = false;
+    for (let i = 0; i < checkList.length && !resultFound; i++) {
+        const [div, resp] = checkList[i];
+        resultFound = calculateResp(div, resp);
+    }
+    // todo this was commented because it is almost never used. Should it be uncommented?
+    // if (!resultFound && isWidthFull(node, nodeWidth, parentWidth)) {
+    //   propWidth = "full";
+    // }
+    return returnValue;
+};
+// set the width to max if the view is near the corner
+// export const isWidthFull = (
+//   node: AltSceneNode,
+//   nodeWidth: number,
+//   parentWidth: number
+// ): boolean => {
+//   // check if initial and final positions are within a magic number (currently 32)
+//   // this will only be reached when parent is FRAME, so node.parent.x is always 0.
+//   const betweenValueMargins =
+//     node.x <= magicMargin && parentWidth - (node.x + nodeWidth) <= magicMargin;
+//   // check if total width is at least 80% of the parent. This number is also a magic number and has worked fine so far.
+//   const betweenPercentMargins = nodeWidth / parentWidth >= 0.8;
+//   if (betweenValueMargins && betweenPercentMargins) {
+//     return true;
+//   }
+//   return false;
+// };
 
 // this is necessary to avoid a height of 4.999999523162842.
 const numToAutoFixed = (num) => {
     return num.toFixed(2).replace(/\.00$/, '');
 };
+
+const tailwindSizePartial = (node) => {
+    const size = nodeWidthHeight(node, true);
+    let w = '';
+    if (typeof size.width === 'number') {
+        w += `w-${pxToLayoutSize(size.width)} `;
+    }
+    else if (typeof size.width === 'string') {
+        if (size.width === 'full' &&
+            node.parent &&
+            'layoutMode' in node.parent &&
+            node.parent.layoutMode === 'HORIZONTAL') {
+            w += `flex-1 `;
+        }
+        else {
+            w += `w-${size.width} `;
+        }
+    }
+    let h = '';
+    if (typeof size.height === 'number') {
+        h = `h-${pxToLayoutSize(size.height)} `;
+    }
+    else if (typeof size.height === 'string') {
+        if (size.height === 'full' &&
+            node.parent &&
+            'layoutMode' in node.parent &&
+            node.parent.layoutMode === 'VERTICAL') {
+            h += `flex-1 `;
+        }
+        else {
+            h += `h-${size.height} `;
+        }
+    }
+    return [w, h];
+};
+/**
+ * https://www.w3schools.com/css/css_dimension.asp
+ */
+const htmlSizeForTailwind = (node) => {
+    return htmlSizePartialForTailwind(node).join('');
+};
+const htmlSizePartialForTailwind = (node) => {
+    // todo refactor with formatWithJSX when more attribute to come
+    return [
+        `w-[${numToAutoFixed(node.width)}px] `,
+        `h-[${numToAutoFixed(node.height)}px] `,
+    ];
+    // return [
+    //   formatWithJSX("width", node.width),
+    //   formatWithJSX("height", node.height),
+    // ];
+};
+
+/**
+ * Add padding if necessary.
+ * Padding is currently only valid for auto layout.
+ * Padding can have values even when AutoLayout is off
+ */
+const commonPadding = (node) => {
+    var _a, _b, _c, _d;
+    if ('layoutMode' in node && node.layoutMode !== 'NONE') {
+        // round the numbers to avoid 5 being different than 5.00001
+        // fix it if undefined (in tests)
+        node.paddingLeft = Math.round((_a = node.paddingLeft) !== null && _a !== void 0 ? _a : 0);
+        node.paddingRight = Math.round((_b = node.paddingRight) !== null && _b !== void 0 ? _b : 0);
+        node.paddingTop = Math.round((_c = node.paddingTop) !== null && _c !== void 0 ? _c : 0);
+        node.paddingBottom = Math.round((_d = node.paddingBottom) !== null && _d !== void 0 ? _d : 0);
+        const arr = {
+            horizontal: 0,
+            vertical: 0,
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+        };
+        if (node.paddingLeft > 0 &&
+            node.paddingLeft === node.paddingRight &&
+            node.paddingLeft === node.paddingBottom &&
+            node.paddingTop === node.paddingBottom) {
+            return { all: node.paddingLeft };
+        }
+        else if (node.paddingLeft > 0 && node.paddingLeft === node.paddingRight) {
+            // horizontal padding + vertical + individual paddings
+            arr.horizontal = node.paddingLeft;
+            if (node.paddingTop > 0 && node.paddingTop === node.paddingBottom) {
+                arr.vertical = node.paddingTop;
+            }
+            else {
+                if (node.paddingTop > 0) {
+                    arr.top = node.paddingTop;
+                }
+                if (node.paddingBottom > 0) {
+                    arr.bottom = node.paddingBottom;
+                }
+            }
+        }
+        else if (node.paddingTop > 0 && node.paddingTop === node.paddingBottom) {
+            // vertical padding + individual paddings
+            arr.vertical = node.paddingBottom;
+            if (node.paddingLeft > 0) {
+                arr.left = node.paddingLeft;
+            }
+            if (node.paddingRight > 0) {
+                arr.right = node.paddingRight;
+            }
+        }
+        else {
+            // individual paddings
+            if (node.paddingLeft > 0) {
+                arr.left = node.paddingLeft;
+            }
+            if (node.paddingRight > 0) {
+                arr.right = node.paddingRight;
+            }
+            if (node.paddingTop > 0) {
+                arr.top = node.paddingTop;
+            }
+            if (node.paddingBottom > 0) {
+                arr.bottom = node.paddingBottom;
+            }
+        }
+        return arr;
+    }
+    return null;
+};
+
+/**
+ * https://tailwindcss.com/docs/margin/
+ * example: px-2 py-8
+ */
+const tailwindPadding = (node) => {
+    const padding = commonPadding(node);
+    if (!padding) {
+        return '';
+    }
+    if ('all' in padding) {
+        return `p-${pxToLayoutSize(padding.all)} `;
+    }
+    let comp = '';
+    // horizontal and vertical, as the default AutoLayout
+    if (padding.horizontal) {
+        comp += `px-${pxToLayoutSize(padding.horizontal)} `;
+    }
+    if (padding.vertical) {
+        comp += `py-${pxToLayoutSize(padding.vertical)} `;
+    }
+    // if left and right exists, verify if they are the same after [pxToLayoutSize] conversion.
+    if (padding.left && padding.right) {
+        const left = pxToLayoutSize(padding.left);
+        const right = pxToLayoutSize(padding.right);
+        if (left === right) {
+            comp += `px-${left} `;
+        }
+        else {
+            comp += `pl-${left} pr-${right} `;
+        }
+    }
+    else if (padding.left) {
+        comp += `pl-${pxToLayoutSize(padding.left)} `;
+    }
+    else if (padding.right) {
+        comp += `pr-${pxToLayoutSize(padding.right)} `;
+    }
+    // if top and bottom exists, verify if they are the same after [pxToLayoutSize] conversion.
+    if (padding.top && padding.bottom) {
+        const top = pxToLayoutSize(padding.top);
+        const bottom = pxToLayoutSize(padding.bottom);
+        if (top === bottom) {
+            comp += `py-${top} `;
+        }
+        else {
+            comp += `pt-${top} pb-${bottom} `;
+        }
+    }
+    else if (padding.top) {
+        comp += `pt-${pxToLayoutSize(padding.top)} `;
+    }
+    else if (padding.bottom) {
+        comp += `pb-${pxToLayoutSize(padding.bottom)} `;
+    }
+    return comp;
+};
+
+const formatWithJSX = (property, value) => {
+    // convert font-size to fontSize.
+    property
+        .split('-')
+        .map((d, i) => (i > 0 ? d.charAt(0).toUpperCase() + d.slice(1) : d))
+        .join('');
+    if (typeof value === 'number') {
+        return `${property}: ${numToAutoFixed(value)}px; `;
+    }
+    else {
+        return `${property}: ${value}; `;
+    }
+};
+
+class TailwindDefaultBuilder {
+    constructor(node, showLayerName) {
+        this.attributes = '';
+        this.styleSeparator = '';
+        this.name = '';
+        this.hasFixedSize = false;
+        this.styleSeparator = ';';
+        this.style = '';
+        this.visible = node.visible;
+        if (showLayerName) {
+            this.name = node.name.replace(' ', '') + ' ';
+        }
+    }
+    blend(node) {
+        this.attributes += tailwindVisibility(node); //
+        this.attributes += tailwindRotation(node);
+        this.attributes += tailwindOpacity(node); //
+        return this;
+    }
+    border(node) {
+        this.attributes += tailwindBorderWidth(node);
+        this.attributes += tailwindBorderRadius(node);
+        this.customColor(node.strokes, 'border');
+        return this;
+    }
+    position(node, parentId, isRelative = false) {
+        const position = tailwindPosition(node, parentId, this.hasFixedSize);
+        if (position === 'absoluteManualLayout' && node.parent) {
+            // tailwind can't deal with absolute layouts.
+            const [parentX, parentY] = parentCoordinates(node.parent);
+            const left = node.x - parentX;
+            const top = node.y - parentY;
+            this.style += formatWithJSX('left', left);
+            this.style += formatWithJSX('top', top);
+            if (!isRelative) {
+                this.attributes += 'absolute ';
+            }
+        }
+        else {
+            this.attributes += position;
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/text-color/
+     * example: text-blue-500
+     * example: text-opacity-25
+     * example: bg-blue-500
+     */
+    customColor(paint, kind) {
+        // visible is true or undefinied (tests)
+        if (this.visible !== false) {
+            let gradient = '';
+            if (kind === 'bg') {
+                gradient = tailwindGradientFromFills(paint);
+            }
+            if (gradient) {
+                this.attributes += gradient;
+            }
+            else {
+                this.attributes += tailwindColorFromFills(paint, kind);
+            }
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/box-shadow/
+     * example: shadow
+     */
+    shadow(node) {
+        this.attributes += tailwindShadow(node);
+        return this;
+    }
+    // must be called before Position, because of the hasFixedSize attribute.
+    widthHeight(node) {
+        // if current element is relative (therefore, children are absolute)
+        // or current element is one of the absoltue children and has a width or height > w/h-64
+        var _a;
+        if ('isRelative' in node && node.isRelative === true) {
+            this.style += htmlSizeForTailwind(node);
+        }
+        else if (((_a = node.parent) === null || _a === void 0 ? void 0 : _a.isRelative) === true ||
+            node.width > 384 ||
+            node.height > 384) {
+            // to avoid mixing html and tailwind sizing too much, only use html sizing when absolutely necessary.
+            // therefore, if only one attribute is larger than 256, only use the html size in there.
+            const [tailwindWidth, tailwindHeight] = tailwindSizePartial(node);
+            const [htmlWidth, htmlHeight] = htmlSizePartialForTailwind(node);
+            // when textAutoResize is NONE or WIDTH_AND_HEIGHT, it has a defined width.
+            if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
+                if (node.width > 384) {
+                    this.attributes += htmlWidth;
+                }
+                else {
+                    this.attributes += tailwindWidth;
+                }
+                this.hasFixedSize = htmlWidth !== '';
+            }
+            // when textAutoResize is NONE has a defined height.
+            if (node.type !== 'TEXT' || node.textAutoResize === 'NONE') {
+                if (node.width > 384) {
+                    // this.style += htmlHeight
+                    this.attributes += htmlHeight;
+                }
+                else {
+                    this.attributes += tailwindHeight;
+                }
+                this.hasFixedSize = htmlHeight !== '';
+            }
+        }
+        else {
+            const partial = tailwindSizePartial(node);
+            // Width
+            if (node.type !== 'TEXT' || node.textAutoResize !== 'WIDTH_AND_HEIGHT') {
+                this.attributes += partial[0];
+            }
+            // Height
+            if (node.type !== 'TEXT' || node.textAutoResize === 'NONE') {
+                this.attributes += partial[1];
+            }
+            this.hasFixedSize = partial[0] !== '' && partial[1] !== '';
+        }
+        return this;
+    }
+    autoLayoutPadding(node) {
+        this.attributes += tailwindPadding(node);
+        return this;
+    }
+    removeTrailingSpace() {
+        if (this.attributes.length > 0 && this.attributes.slice(-1) === ' ') {
+            this.attributes = this.attributes.slice(0, -1);
+        }
+        if (this.style.length > 0 && this.style.slice(-1) === ' ') {
+            this.style = this.style.slice(0, -1);
+        }
+        return this;
+    }
+    build(additionalAttr = '') {
+        this.attributes = this.name + additionalAttr + this.attributes;
+        this.removeTrailingSpace();
+        if (this.style) {
+            this.style = ` style="${this.style}"`;
+        }
+        if (!this.attributes && !this.style) {
+            return '';
+        }
+        const classOrClassName = 'class';
+        return ` ${classOrClassName}="${this.attributes}"${this.style}`;
+    }
+    reset() {
+        this.attributes = '';
+    }
+}
+
+class TailwindTextBuilder extends TailwindDefaultBuilder {
+    constructor(node, showLayerName) {
+        super(node, showLayerName);
+    }
+    // must be called before Position method
+    textAutoSize(node) {
+        if (node.textAutoResize === 'NONE') {
+            // going to be used for position
+            this.hasFixedSize = true;
+        }
+        this.widthHeight(node);
+        return this;
+    }
+    // todo fontFamily
+    //  fontFamily(node: AltTextNode): this {
+    //    return this;
+    //  }
+    /**
+     * https://tailwindcss.com/docs/font-size/
+     * example: text-md
+     */
+    fontSize(node) {
+        // example: text-md
+        if (node.fontSize !== figma.mixed) {
+            const value = pxToFontSize(node.fontSize);
+            this.attributes += `text-${value} `;
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/font-style/
+     * example: font-extrabold
+     * example: italic
+     */
+    fontStyle(node) {
+        if (node.fontName !== figma.mixed) {
+            const lowercaseStyle = node.fontName.style.toLowerCase();
+            if (lowercaseStyle.match('italic')) {
+                this.attributes += 'italic ';
+            }
+            if (lowercaseStyle.match('regular')) {
+                // ignore the font-style when regular (default)
+                return this;
+            }
+            const value = node.fontName.style
+                .replace('italic', '')
+                .replace(' ', '')
+                .toLowerCase();
+            this.attributes += `font-${value} `;
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/letter-spacing/
+     * example: tracking-widest
+     */
+    letterSpacing(node) {
+        const letterSpacing = commonLetterSpacing(node);
+        if (letterSpacing > 0) {
+            const value = pxToLetterSpacing(letterSpacing);
+            this.attributes += `tracking-${value} `;
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/line-height/
+     * example: leading-3
+     */
+    lineHeight(node) {
+        const lineHeight = commonLineHeight(node);
+        if (lineHeight > 0) {
+            const value = pxToLineHeight(lineHeight);
+            this.attributes += `leading-${value} `;
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/text-align/
+     * example: text-justify
+     */
+    textAlign(node) {
+        // if alignHorizontal is LEFT, don't do anything because that is native
+        // only undefined in testing
+        if (node.textAlignHorizontal && node.textAlignHorizontal !== 'LEFT') {
+            // todo when node.textAutoResize === "WIDTH_AND_HEIGHT" and there is no \n in the text, this can be ignored.
+            switch (node.textAlignHorizontal) {
+                case 'CENTER':
+                    this.attributes += `text-center `;
+                    break;
+                case 'RIGHT':
+                    this.attributes += `text-right `;
+                    break;
+                case 'JUSTIFIED':
+                    this.attributes += `text-justify `;
+                    break;
+            }
+        }
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/text-transform/
+     * example: uppercase
+     */
+    textTransform(node) {
+        if (node.textCase === 'LOWER') {
+            this.attributes += 'lowercase ';
+        }
+        else if (node.textCase === 'TITLE') {
+            this.attributes += 'capitalize ';
+        }
+        else if (node.textCase === 'UPPER') {
+            this.attributes += 'uppercase ';
+        }
+        else if (node.textCase === 'ORIGINAL') ;
+        return this;
+    }
+    /**
+     * https://tailwindcss.com/docs/text-decoration/
+     * example: underline
+     */
+    textDecoration(node) {
+        if (node.textDecoration === 'UNDERLINE') {
+            this.attributes += 'underline ';
+        }
+        else if (node.textDecoration === 'STRIKETHROUGH') {
+            this.attributes += 'line-through ';
+        }
+        return this;
+    }
+    reset() {
+        this.attributes = '';
+    }
+}
 
 function notEmpty(value) {
     return value !== null && value !== undefined;
@@ -371,6 +1673,16 @@ function createRemFromPx(px) {
         return px;
     return toFixed((pixels / 1920) * 120, 3);
 }
+
+// From https://github.com/sindresorhus/indent-string
+const indentString = (str, indentLevel = 1) => {
+    // const options = {
+    //   includeEmptyLines: false,
+    // };
+    // const regex = options.includeEmptyLines ? /^/gm : /^(?!\s*$)/gm;
+    const regex = /^(?!\s*$)/gm;
+    return str.replace(regex, ' '.repeat(indentLevel * 4));
+};
 
 /*! *****************************************************************************
 Copyright (c) Microsoft Corporation.
@@ -569,9 +1881,13 @@ function tailwindSRectangle(node, children) {
     return { clazz, style };
 }
 
+let parentId$1 = '';
+let showLayerName = false;
 let scriptSet = new Set();
 const tailwindMain = (sceneNode, parentIdSrc = '', layerName = false) => {
     scriptSet = new Set();
+    parentId$1 = parentIdSrc;
+    showLayerName = layerName;
     let result = tailwindWidgetGenerator(sceneNode);
     console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 37 ~ result', result);
     // remove the initial \n that is made in Container.
@@ -613,25 +1929,289 @@ const tailwindWidgetGenerator = (sceneNode) => {
                     comp += `<${tag} class="${clazz}" style="${style}"></${tag}>`;
                 }
                 break;
+            case 'FRAME': {
+                comp += tailwindFrame(node);
+                break;
+            }
         }
-        // if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-        // 	comp += tailwindContainer(node, '', '', {
-        // 		isRelative: false,
-        // 		isInput: false,
-        // 	})
-        // } else if (node.type === 'GROUP') {
-        // 	comp += tailwindGroup(node)
-        // } else if (node.type === 'FRAME') {
-        // } else if (node.type === 'TEXT') {
-        // 	comp += tailwindText(node, false)
-        // } else if (node.type === 'COMPONENT') {
-        // 	comp += tailwindComponent(node)
-        // } else if (node.type === 'INSTANCE') {
-        // 	comp += tailwindInstance(node)
-        // }
-        // todo support Line
+        if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
+            comp += tailwindContainer(node, '', '', {
+                isRelative: false,
+                isInput: false,
+            });
+        }
+        else if (node.type === 'GROUP') {
+            comp += tailwindGroup(node);
+        }
+        else if (node.type === 'FRAME') ;
+        else if (node.type === 'TEXT') {
+            comp += tailwindText(node, false);
+        }
+        else if (node.type === 'COMPONENT') {
+            comp += tailwindComponent();
+        }
+        else if (node.type === 'INSTANCE') {
+            comp += tailwindInstance(node);
+        }
     });
     return comp;
+};
+const tailwindGroup = (node) => {
+    // ignore the view when size is zero or less
+    // while technically it shouldn't get less than 0, due to rounding errors,
+    // it can get to values like: -0.000004196293048153166
+    // also ignore if there are no children inside, which makes no sense
+    if (node.width <= 0 || node.height <= 0 || node.children.length === 0) {
+        return '';
+    }
+    // this needs to be called after CustomNode because widthHeight depends on it
+    const builder = new TailwindDefaultBuilder(node, showLayerName)
+        .blend(node)
+        .widthHeight(node)
+        .position(node, parentId$1);
+    if (builder.attributes || builder.style) {
+        const attr = builder.build('relative ');
+        const generator = tailwindWidgetGenerator(node.children);
+        return `\n<div${attr}>${indentString(generator)}\n</div>`;
+    }
+    return tailwindWidgetGenerator(node.children);
+};
+const tailwindText = (node, isInput) => {
+    // follow the website order, to make it easier
+    const builderResult = new TailwindTextBuilder(node, showLayerName)
+        .blend(node)
+        .textAutoSize(node)
+        .position(node, parentId$1)
+        // todo fontFamily (via node.fontName !== figma.mixed ? `fontFamily: ${node.fontName.family}`)
+        // todo font smoothing
+        .fontSize(node)
+        .fontStyle(node)
+        .letterSpacing(node)
+        .lineHeight(node)
+        .textDecoration(node)
+        // todo text lists (<li>)
+        .textAlign(node)
+        .customColor(node.fills, 'text')
+        .textTransform(node);
+    const splittedChars = node.characters.split('\n');
+    const charsWithLineBreak = splittedChars.length > 1
+        ? node.characters.split('\n').join('<br/>')
+        : node.characters;
+    if (isInput) {
+        return [builderResult.attributes, charsWithLineBreak];
+    }
+    else {
+        return `\n<p${builderResult.build()}>${charsWithLineBreak}</p>`;
+    }
+};
+const tailwindComponent = (node) => {
+    return `\n<Keypad on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }} />`;
+};
+const tailwindInstance = (node) => {
+    const tag = node.mainComponent.name;
+    if (!tag) {
+        return '';
+    }
+    let attr = '';
+    switch (tag) {
+        case 'Keypad':
+            attr = `on:submit={handleSubmit} {maxLength} focusSectionOption={{ id: 'Keypad' }}`;
+            break;
+        case 'Button':
+            scriptSet.add('Button');
+            let option = '';
+            console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 189 ~ node', node);
+            if (node.interactions[0]) {
+                const { action, trigger } = node.interactions[0];
+                // const TRIGGER_MAP: Record<STrigger['type'], string> = {
+                // 	ON_CLICK: 'on:click',
+                // 	AFTER_TIMEOUT: '',
+                // 	MOUSE_DOWN: '',
+                // 	MOUSE_ENTER: '',
+                // 	MOUSE_LEAVE: '',
+                // 	MOUSE_UP: '',
+                // 	ON_DRAG: '',
+                // 	ON_HOVER: '',
+                // 	ON_PRESS: '',
+                // }
+                // const build = builder.build(additionalAttr)
+                option = action.type === 'SELECT' ? `${action.option}` : ``;
+            }
+            attr = `selection={'${option}'}`;
+    }
+    const childrenStr = tailwindWidgetGenerator(node.children);
+    // ignore the view when size is zero or less
+    // while technically it shouldn't get less than 0, due to rounding errors,
+    // it can get to values like: -0.000004196293048153166
+    if (node.width <= 0 || node.height <= 0) {
+        return childrenStr;
+    }
+    let isRelative = true;
+    let additionalAttr = 'relative ';
+    if (node.layoutMode !== 'NONE') {
+        additionalAttr = rowColumnProps(node);
+        isRelative = false;
+    }
+    const builder = new TailwindDefaultBuilder(node, showLayerName, false)
+        .blend(node)
+        .widthHeight(node)
+        .autoLayoutPadding(node)
+        .position(node, parentId$1, isRelative)
+        .customColor(node.fills, 'bg')
+        // TODO image and gradient support (tailwind does not support gradients)
+        .shadow(node)
+        .border(node);
+    return `\n<${tag} ${attr} ${builder.build(additionalAttr)} >${indentString(childrenStr)}\n</${tag}>`;
+};
+const tailwindFrame = (node) => {
+    // const vectorIfExists = tailwindVector(node, isJsx);
+    // if (vectorIfExists) return vectorIfExists;
+    var _a;
+    if (node.children.length === 1 &&
+        node.children[0].type === 'TEXT' &&
+        ((_a = node === null || node === void 0 ? void 0 : node.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().match('input'))) {
+        const [attr, char] = tailwindText(node.children[0], true);
+        return tailwindContainer(node, ` placeholder="${char}"`, attr, {
+            isRelative: false,
+            isInput: true,
+        });
+    }
+    const childrenStr = tailwindWidgetGenerator(node.children);
+    if (node.layoutMode !== 'NONE') {
+        const rowColumn = rowColumnProps(node);
+        return tailwindContainer(node, childrenStr, rowColumn, {
+            isRelative: false,
+            isInput: false,
+        });
+    }
+    else {
+        // node.layoutMode === "NONE" && node.children.length > 1
+        // children needs to be absolute
+        return tailwindContainer(node, childrenStr, 'relative ', {
+            isRelative: true,
+            isInput: false,
+        });
+    }
+};
+// properties named propSomething always take care of ","
+// sometimes a property might not exist, so it doesn't add ","
+const tailwindContainer = (node, children, additionalAttr, attr) => {
+    var _a;
+    // ignore the view when size is zero or less
+    // while technically it shouldn't get less than 0, due to rounding errors,
+    // it can get to values like: -0.000004196293048153166
+    if (node.width <= 0 || node.height <= 0) {
+        return children;
+    }
+    const builder = new TailwindDefaultBuilder(node, showLayerName)
+        .blend(node)
+        .widthHeight(node)
+        .autoLayoutPadding(node)
+        .position(node, parentId$1, attr.isRelative)
+        .customColor(node.fills, 'bg')
+        // TODO image and gradient support (tailwind does not support gradients)
+        .shadow(node)
+        .border(node);
+    if (attr.isInput) {
+        // children before the > is not a typo.
+        return `\n<input${builder.build(additionalAttr)}${children}></input>`;
+    }
+    if (builder.attributes || additionalAttr) {
+        const build = builder.build(additionalAttr);
+        // image fill and no children -- let's emit an <img />
+        let tag = 'div';
+        let src = '';
+        if (((_a = retrieveTopFill(node.fills)) === null || _a === void 0 ? void 0 : _a.type) === 'IMAGE') {
+            tag = 'img';
+            src = ` src="https://via.placeholder.com/${node.width}x${node.height}"`;
+        }
+        let focusSection = '';
+        if (node.focusSection) {
+            scriptSet.add('focusSection');
+            focusSection = ` use:focusSection={${JSON.stringify(node.focusSection)}} `;
+        }
+        if (children) {
+            return `\n<${tag}${focusSection}${build}${src} >${indentString(children)}\n</${tag}>`;
+        }
+        else {
+            return `\n<${tag}${focusSection}${build}${src} />`;
+        }
+    }
+    return children;
+};
+const rowColumnProps = (node) => {
+    // ROW or COLUMN
+    // ignore current node when it has only one child and it has the same size
+    if (node.children.length === 1 &&
+        node.children[0].width === node.width &&
+        node.children[0].height === node.height) {
+        return '';
+    }
+    // [optimization]
+    // flex, by default, has flex-row. Therefore, it can be omitted.
+    const rowOrColumn = node.layoutMode === 'HORIZONTAL' ? '' : 'flex-col ';
+    // https://tailwindcss.com/docs/space/
+    // space between items
+    const spacing = node.itemSpacing > 0 ? pxToLayoutSize(node.itemSpacing) : 0;
+    const spaceDirection = node.layoutMode === 'HORIZONTAL' ? 'x' : 'y';
+    // space is visually ignored when there is only one child or spacing is zero
+    const space = node.children.length > 1 && spacing > 0
+        ? `space-${spaceDirection}-${spacing} `
+        : '';
+    // special case when there is only one children; need to position correctly in Flex.
+    // let justify = "justify-center";
+    // if (node.children.length === 1) {
+    //   const nodeCenteredPosX = node.children[0].x + node.children[0].width / 2;
+    //   const parentCenteredPosX = node.width / 2;
+    //   const marginX = nodeCenteredPosX - parentCenteredPosX;
+    //   // allow a small threshold
+    //   if (marginX < -4) {
+    //     justify = "justify-start";
+    //   } else if (marginX > 4) {
+    //     justify = "justify-end";
+    //   }
+    // }
+    let primaryAlign;
+    switch (node.primaryAxisAlignItems) {
+        case 'MIN':
+            primaryAlign = 'justify-start ';
+            break;
+        case 'CENTER':
+            primaryAlign = 'justify-center ';
+            break;
+        case 'MAX':
+            primaryAlign = 'justify-end ';
+            break;
+        case 'SPACE_BETWEEN':
+            primaryAlign = 'justify-between ';
+            break;
+    }
+    // [optimization]
+    // when all children are STRETCH and layout is Vertical, align won't matter. Otherwise, center it.
+    let counterAlign;
+    switch (node.counterAxisAlignItems) {
+        case 'MIN':
+            counterAlign = 'items-start ';
+            break;
+        case 'CENTER':
+            counterAlign = 'items-center ';
+            break;
+        case 'MAX':
+            counterAlign = 'items-end ';
+            break;
+    }
+    // const layoutAlign =
+    //   node.layoutMode === "VERTICAL" &&
+    //   node.children.every((d) => d.layoutAlign === "STRETCH")
+    //     ? ""
+    //     : `items-center ${justify} `;
+    // if parent is a Frame with AutoLayout set to Vertical, the current node should expand
+    const flex = node.parent &&
+        'layoutMode' in node.parent &&
+        node.parent.layoutMode === node.layoutMode
+        ? 'flex '
+        : 'inline-flex ';
+    return `${flex}${rowOrColumn}${space}${counterAlign}${primaryAlign}`;
 };
 
 const convertGroupToFrame = (node) => {

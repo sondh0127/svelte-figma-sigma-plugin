@@ -16,7 +16,7 @@ import type {
 	SComponentNode,
 	SInstanceNode,
 } from '../nodes/types'
-import { tailwindSFrame, tailwindSRectangle } from './tailwindConversion'
+import { tailwindSRectangle } from './tailwindConversion'
 
 let parentId = ''
 let showLayerName = false
@@ -91,31 +91,30 @@ export const tailwindWidgetGenerator = (
 				}
 
 				break
-			// case 'FRAME': {
-			// 	comp += tailwindSFrame(node)
-			// 	break
-			// }
+			case 'FRAME': {
+				comp += tailwindFrame(node)
+				break
+			}
 
 			default:
 				break
 		}
 
-		// if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-		// 	comp += tailwindContainer(node, '', '', {
-		// 		isRelative: false,
-		// 		isInput: false,
-		// 	})
-		// } else if (node.type === 'GROUP') {
-		// 	comp += tailwindGroup(node)
-		// } else if (node.type === 'FRAME') {
-		// } else if (node.type === 'TEXT') {
-		// 	comp += tailwindText(node, false)
-		// } else if (node.type === 'COMPONENT') {
-		// 	comp += tailwindComponent(node)
-		// } else if (node.type === 'INSTANCE') {
-		// 	comp += tailwindInstance(node)
-		// }
-		// todo support Line
+		if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
+			comp += tailwindContainer(node, '', '', {
+				isRelative: false,
+				isInput: false,
+			})
+		} else if (node.type === 'GROUP') {
+			comp += tailwindGroup(node)
+		} else if (node.type === 'FRAME') {
+		} else if (node.type === 'TEXT') {
+			comp += tailwindText(node, false)
+		} else if (node.type === 'COMPONENT') {
+			comp += tailwindComponent(node)
+		} else if (node.type === 'INSTANCE') {
+			comp += tailwindInstance(node)
+		}
 	})
 
 	return comp
@@ -257,7 +256,39 @@ const tailwindInstance = (node: SInstanceNode): string => {
 		childrenStr,
 	)}\n</${tag}>`
 }
+const tailwindFrame = (node: SFrameNode): string => {
+	// const vectorIfExists = tailwindVector(node, isJsx);
+	// if (vectorIfExists) return vectorIfExists;
 
+	if (
+		node.children.length === 1 &&
+		node.children[0].type === 'TEXT' &&
+		node?.name?.toLowerCase().match('input')
+	) {
+		const [attr, char] = tailwindText(node.children[0], true)
+		return tailwindContainer(node, ` placeholder="${char}"`, attr, {
+			isRelative: false,
+			isInput: true,
+		})
+	}
+
+	const childrenStr = tailwindWidgetGenerator(node.children)
+
+	if (node.layoutMode !== 'NONE') {
+		const rowColumn = rowColumnProps(node)
+		return tailwindContainer(node, childrenStr, rowColumn, {
+			isRelative: false,
+			isInput: false,
+		})
+	} else {
+		// node.layoutMode === "NONE" && node.children.length > 1
+		// children needs to be absolute
+		return tailwindContainer(node, childrenStr, 'relative ', {
+			isRelative: true,
+			isInput: false,
+		})
+	}
+}
 // properties named propSomething always take care of ","
 // sometimes a property might not exist, so it doesn't add ","
 export const tailwindContainer = (
