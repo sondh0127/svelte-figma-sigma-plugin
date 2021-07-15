@@ -193,7 +193,8 @@ export const convertIntoSNodes = (
 
 				sNode.children = convertIntoSNodes(node.children, sNode)
 
-				return convertToAutoLayout(convertNodesOnRectangle(sNode))
+				// return convertToAutoLayout(convertNodesOnRectangle(sNode))
+				return sNode
 			}
 			default:
 				return null

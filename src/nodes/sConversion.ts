@@ -93,14 +93,11 @@ const convertSGeometry = (node: GeometryMixin): SGeometryMixin => {
 }
 
 const convertSBlend = (node: BlendMixin): SBlendMixin => {
+	const effects = cloneObject(node.effects) as SBlendMixin['effects']
+
 	return {
-		...pick(node, [
-			'opacity',
-			'blendMode',
-			'isMask',
-			'effects',
-			'effectStyleId',
-		]),
+		...pick(node, ['opacity', 'blendMode', 'isMask', 'effectStyleId']),
+		effects,
 	}
 }
 

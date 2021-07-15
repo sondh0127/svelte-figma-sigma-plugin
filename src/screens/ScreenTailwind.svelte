@@ -25,6 +25,10 @@
 	} from '../components/figma-plugin-ds-svelte'
 	import { createEventDispatcher } from 'svelte'
 	import NodeInteractions from '../lib/NodeInteractions.svelte'
+	$: console.log(
+		'🇻🇳 ~ file: ScreenTailwind.svelte ~ line 38 ~ $sceneNode',
+		$sceneNode,
+	)
 
 	let textData = []
 	let colorData = []

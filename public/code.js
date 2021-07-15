@@ -1836,6 +1836,7 @@ const sLayout = (node) => {
     // 	'layoutGrow',
     // ]
 };
+// <div class="relative"></div>
 function tailwindSRectangle(node, children) {
     const clazz = [
         ...sBlend(node).clazz,
@@ -1881,6 +1882,39 @@ function tailwindSRectangle(node, children) {
     return { clazz, style };
 }
 
+const layoutModes = {
+    NONE: 'block',
+    HORIZONTAL: 'flex flex-row',
+    VERTICAL: 'flex flex-col',
+};
+const itemSpacings = {
+    NONE: '',
+    HORIZONTAL: 'space-x-',
+    VERTICAL: 'space-y-',
+};
+const primaryAxisAlignItems = {
+    MIN: 'justify-start',
+    CENTER: 'justify-center',
+    MAX: 'justify-end',
+    SPACE_BETWEEN: 'justify-between',
+};
+const counterAxisAlignItems = {
+    MIN: 'items-start',
+    CENTER: 'items-center',
+    MAX: 'items-end',
+};
+const autoLayoutBuilder = (node) => {
+    let classes = [
+        layoutModes[node.layoutMode],
+        node.primaryAxisAlignItems === 'SPACE_BETWEEN'
+            ? ''
+            : `${itemSpacings[node.layoutMode]}[${node.itemSpacing}px]`,
+        `${primaryAxisAlignItems[node.primaryAxisAlignItems]}`,
+        `${counterAxisAlignItems[node.counterAxisAlignItems]}`,
+    ];
+    return classes.filter((cls) => cls).join(' ');
+};
+
 let parentId$1 = '';
 let showLayerName = false;
 let scriptSet = new Set();
@@ -1917,33 +1951,19 @@ const tailwindWidgetGenerator = (sceneNode) => {
     visibleSceneNode.forEach((node) => {
         switch (node.type) {
             case 'RECTANGLE':
-                // ignore the view when size is zero or less
-                // while technically it shouldn't get less than 0, due to rounding errors,
-                // it can get to values like: -0.000004196293048153166
-                if (node.width <= 0 || node.height <= 0) {
-                    comp += '';
-                }
-                else {
-                    const tag = 'div';
-                    const { clazz, style } = tailwindSRectangle(node);
-                    comp += `<${tag} class="${clazz}" style="${style}"></${tag}>`;
-                }
+                const tag = 'div';
+                const clazz = tailwindSRectangle(node);
+                comp += `<${tag} class="${clazz}"> ''</${tag}>`;
                 break;
             case 'FRAME': {
-                comp += tailwindFrame(node);
+                comp += tailwindSFrame(node);
                 break;
             }
         }
-        if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-            comp += tailwindContainer(node, '', '', {
-                isRelative: false,
-                isInput: false,
-            });
-        }
+        if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') ;
         else if (node.type === 'GROUP') {
             comp += tailwindGroup(node);
         }
-        else if (node.type === 'FRAME') ;
         else if (node.type === 'TEXT') {
             comp += tailwindText(node, false);
         }
@@ -2063,81 +2083,36 @@ const tailwindInstance = (node) => {
         .border(node);
     return `\n<${tag} ${attr} ${builder.build(additionalAttr)} >${indentString(childrenStr)}\n</${tag}>`;
 };
-const tailwindFrame = (node) => {
-    // const vectorIfExists = tailwindVector(node, isJsx);
-    // if (vectorIfExists) return vectorIfExists;
-    var _a;
-    if (node.children.length === 1 &&
-        node.children[0].type === 'TEXT' &&
-        ((_a = node === null || node === void 0 ? void 0 : node.name) === null || _a === void 0 ? void 0 : _a.toLowerCase().match('input'))) {
-        const [attr, char] = tailwindText(node.children[0], true);
-        return tailwindContainer(node, ` placeholder="${char}"`, attr, {
-            isRelative: false,
-            isInput: true,
-        });
-    }
+const tailwindSFrame = (node) => {
+    console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 260 ~ node', node);
+    // if (
+    // 	node.children.length === 1 &&
+    // 	node.children[0].type === 'TEXT' &&
+    // 	node?.name?.toLowerCase().match('input')
+    // ) {
+    // 	const [attr, char] = tailwindText(node.children[0], true)
+    // 	return tailwindContainer(node, ` placeholder="${char}"`, attr, {
+    // 		isRelative: false,
+    // 		isInput: true,
+    // 	})
+    // }
     const childrenStr = tailwindWidgetGenerator(node.children);
-    if (node.layoutMode !== 'NONE') {
-        const rowColumn = rowColumnProps(node);
-        return tailwindContainer(node, childrenStr, rowColumn, {
-            isRelative: false,
-            isInput: false,
-        });
-    }
-    else {
-        // node.layoutMode === "NONE" && node.children.length > 1
-        // children needs to be absolute
-        return tailwindContainer(node, childrenStr, 'relative ', {
-            isRelative: true,
-            isInput: false,
-        });
-    }
-};
-// properties named propSomething always take care of ","
-// sometimes a property might not exist, so it doesn't add ","
-const tailwindContainer = (node, children, additionalAttr, attr) => {
-    var _a;
-    // ignore the view when size is zero or less
-    // while technically it shouldn't get less than 0, due to rounding errors,
-    // it can get to values like: -0.000004196293048153166
-    if (node.width <= 0 || node.height <= 0) {
-        return children;
-    }
-    const builder = new TailwindDefaultBuilder(node, showLayerName)
-        .blend(node)
-        .widthHeight(node)
-        .autoLayoutPadding(node)
-        .position(node, parentId$1, attr.isRelative)
-        .customColor(node.fills, 'bg')
-        // TODO image and gradient support (tailwind does not support gradients)
-        .shadow(node)
-        .border(node);
-    if (attr.isInput) {
-        // children before the > is not a typo.
-        return `\n<input${builder.build(additionalAttr)}${children}></input>`;
-    }
-    if (builder.attributes || additionalAttr) {
-        const build = builder.build(additionalAttr);
-        // image fill and no children -- let's emit an <img />
-        let tag = 'div';
-        let src = '';
-        if (((_a = retrieveTopFill(node.fills)) === null || _a === void 0 ? void 0 : _a.type) === 'IMAGE') {
-            tag = 'img';
-            src = ` src="https://via.placeholder.com/${node.width}x${node.height}"`;
-        }
-        let focusSection = '';
-        if (node.focusSection) {
-            scriptSet.add('focusSection');
-            focusSection = ` use:focusSection={${JSON.stringify(node.focusSection)}} `;
-        }
-        if (children) {
-            return `\n<${tag}${focusSection}${build}${src} >${indentString(children)}\n</${tag}>`;
-        }
-        else {
-            return `\n<${tag}${focusSection}${build}${src} />`;
-        }
-    }
-    return children;
+    // if (node.layoutMode !== 'NONE') {
+    // 	const rowColumn = rowColumnProps(node)
+    // 	return tailwindContainer(node, childrenStr, rowColumn, {
+    // 		isRelative: false,
+    // 		isInput: false,
+    // 	})
+    // } else {
+    // 	// node.layoutMode === "NONE" && node.children.length > 1
+    // 	// children needs to be absolute
+    // 	return tailwindContainer(node, childrenStr, 'relative ', {
+    // 		isRelative: true,
+    // 		isInput: false,
+    // 	})
+    // }
+    const builder = [autoLayoutBuilder(node)].join(' ');
+    return `<div class="${builder}">\n${indentString(childrenStr)}\n</div>`;
 };
 const rowColumnProps = (node) => {
     // ROW or COLUMN
@@ -2520,9 +2495,6 @@ const convertNodesOnRectangle = (node) => {
     if (node.children.length < 2) {
         return node;
     }
-    if (!node.id) {
-        throw new Error('Node is missing an id! This error should only happen in tests.');
-    }
     const colliding = retrieveCollidingItems(node.children);
     const parentsKeys = Object.keys(colliding);
     // start with all children. This is going to be filtered.
@@ -2768,13 +2740,8 @@ const convertSGeometry = (node) => {
         fillStyleId });
 };
 const convertSBlend = (node) => {
-    return Object.assign({}, pick(node, [
-        'opacity',
-        'blendMode',
-        'isMask',
-        'effects',
-        'effectStyleId',
-    ]));
+    const effects = cloneObject(node.effects);
+    return Object.assign(Object.assign({}, pick(node, ['opacity', 'blendMode', 'isMask', 'effectStyleId'])), { effects });
 };
 const convertSContainer = (node) => {
     return Object.assign({}, pick(node, ['expanded']));
@@ -3064,7 +3031,8 @@ const convertIntoSNodes = (sSceneNode, sParent = null) => {
                     sNode.parent = sParent;
                 }
                 sNode.children = convertIntoSNodes(node.children, sNode);
-                return convertToAutoLayout(convertNodesOnRectangle(sNode));
+                // return convertToAutoLayout(convertNodesOnRectangle(sNode))
+                return sNode;
             }
             default:
                 return null;
@@ -3200,7 +3168,7 @@ let mode;
 figma.showUI(__html__, { width: 450, height: 550 });
 if (figma.command == 'addOnClick') ;
 const run = () => {
-    var _a, _b;
+    var _a, _b, _c;
     if (figma.currentPage.selection.length === 0) {
         emit('empty');
         return;
@@ -3210,9 +3178,10 @@ const run = () => {
         const selection = figma.currentPage.selection;
         parentId = (_b = (_a = selection[0].parent) === null || _a === void 0 ? void 0 : _a.id) !== null && _b !== void 0 ? _b : '';
     }
+    console.log('🇻🇳 ~ file: code.ts ~ line 63 ~ layoutMode', (_c = figma.currentPage.selection[0]) === null || _c === void 0 ? void 0 : _c.layoutMode);
     let result = '';
-    debugger;
     const convertedSelection = convertIntoSNodes(figma.currentPage.selection, null);
+    console.log('🇻🇳 ~ file: code.ts ~ line 63 ~ convertedSelection', convertedSelection);
     if (mode === 'tailwind') {
         result = tailwindMain(convertedSelection, parentId, layerName);
     }

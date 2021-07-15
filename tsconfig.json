@@ -7,6 +7,11 @@
       "@figma/plugin-typings",
     ],
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules/*", "__sapper__/*", "public/*"],
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules/*",
+    "public/*"
+  ],
 }

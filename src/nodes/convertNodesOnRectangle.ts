@@ -16,11 +16,6 @@ export const convertNodesOnRectangle = (
 	if (node.children.length < 2) {
 		return node
 	}
-	if (!node.id) {
-		throw new Error(
-			'Node is missing an id! This error should only happen in tests.',
-		)
-	}
 
 	const colliding = retrieveCollidingItems(node.children)
 

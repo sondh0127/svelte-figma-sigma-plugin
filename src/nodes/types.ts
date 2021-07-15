@@ -308,6 +308,7 @@ interface SImagePaint {
 	imageHash: string | null
 	imageTransform?: Transform // setting for "CROP"
 	scalingFactor?: number // setting for "TILE"
+	rotation?: number // setting for "FILL" | "FIT" | "TILE"
 	filters?: ImageFilters
 
 	visible?: boolean

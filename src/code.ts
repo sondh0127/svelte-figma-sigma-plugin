@@ -38,12 +38,19 @@ const run = () => {
 		const selection = figma.currentPage.selection
 		parentId = selection[0].parent?.id ?? ''
 	}
+	console.log(
+		'🇻🇳 ~ file: code.ts ~ line 63 ~ layoutMode',
+		figma.currentPage.selection[0]?.layoutMode,
+	)
 
 	let result = ''
-	debugger
 	const convertedSelection = convertIntoSNodes(
 		figma.currentPage.selection,
 		null,
+	)
+	console.log(
+		'🇻🇳 ~ file: code.ts ~ line 63 ~ convertedSelection',
+		convertedSelection,
 	)
 
 	if (mode === 'tailwind') {
@@ -51,7 +58,6 @@ const run = () => {
 	}
 
 	emit('result', result)
-
 	// if (mode === 'tailwind') {
 	// 	emit('colors', retrieveGenericSolidUIColors(convertedSelection, mode))
 	// 	emit('gradients', retrieveGenericLinearGradients(convertedSelection, mode))

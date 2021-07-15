@@ -17,6 +17,7 @@ import type {
 	SInstanceNode,
 } from '../nodes/types'
 import { tailwindSRectangle } from './tailwindConversion'
+import { autoLayoutBuilder } from './builders/autoLayoutBuilder'
 
 let parentId = ''
 let showLayerName = false
@@ -77,22 +78,13 @@ export const tailwindWidgetGenerator = (
 	visibleSceneNode.forEach((node) => {
 		switch (node.type) {
 			case 'RECTANGLE':
-				// ignore the view when size is zero or less
-				// while technically it shouldn't get less than 0, due to rounding errors,
-				// it can get to values like: -0.000004196293048153166
-				if (node.width <= 0 || node.height <= 0) {
-					comp += ''
-				} else {
-					const tag = 'div'
-					const { clazz, style } = tailwindSRectangle(node, '')
-					let focusSection = ''
-
-					comp += `<${tag} class="${clazz}" style="${style}"></${tag}>`
-				}
+				const tag = 'div'
+				const clazz = tailwindSRectangle(node, '')
+				comp += `<${tag} class="${clazz}"> ''</${tag}>`
 
 				break
 			case 'FRAME': {
-				comp += tailwindFrame(node)
+				comp += tailwindSFrame(node)
 				break
 			}
 
@@ -101,13 +93,12 @@ export const tailwindWidgetGenerator = (
 		}
 
 		if (node.type === 'RECTANGLE' || node.type === 'ELLIPSE') {
-			comp += tailwindContainer(node, '', '', {
-				isRelative: false,
-				isInput: false,
-			})
+			// comp += tailwindContainer(node, '', '', {
+			// 	isRelative: false,
+			// 	isInput: false,
+			// })
 		} else if (node.type === 'GROUP') {
 			comp += tailwindGroup(node)
-		} else if (node.type === 'FRAME') {
 		} else if (node.type === 'TEXT') {
 			comp += tailwindText(node, false)
 		} else if (node.type === 'COMPONENT') {
@@ -256,38 +247,40 @@ const tailwindInstance = (node: SInstanceNode): string => {
 		childrenStr,
 	)}\n</${tag}>`
 }
-const tailwindFrame = (node: SFrameNode): string => {
-	// const vectorIfExists = tailwindVector(node, isJsx);
-	// if (vectorIfExists) return vectorIfExists;
+const tailwindSFrame = (node: SFrameNode): string => {
+	console.log('🇻🇳 ~ file: tailwindMain.ts ~ line 260 ~ node', node)
 
-	if (
-		node.children.length === 1 &&
-		node.children[0].type === 'TEXT' &&
-		node?.name?.toLowerCase().match('input')
-	) {
-		const [attr, char] = tailwindText(node.children[0], true)
-		return tailwindContainer(node, ` placeholder="${char}"`, attr, {
-			isRelative: false,
-			isInput: true,
-		})
-	}
+	// if (
+	// 	node.children.length === 1 &&
+	// 	node.children[0].type === 'TEXT' &&
+	// 	node?.name?.toLowerCase().match('input')
+	// ) {
+	// 	const [attr, char] = tailwindText(node.children[0], true)
+	// 	return tailwindContainer(node, ` placeholder="${char}"`, attr, {
+	// 		isRelative: false,
+	// 		isInput: true,
+	// 	})
+	// }
 
 	const childrenStr = tailwindWidgetGenerator(node.children)
 
-	if (node.layoutMode !== 'NONE') {
-		const rowColumn = rowColumnProps(node)
-		return tailwindContainer(node, childrenStr, rowColumn, {
-			isRelative: false,
-			isInput: false,
-		})
-	} else {
-		// node.layoutMode === "NONE" && node.children.length > 1
-		// children needs to be absolute
-		return tailwindContainer(node, childrenStr, 'relative ', {
-			isRelative: true,
-			isInput: false,
-		})
-	}
+	// if (node.layoutMode !== 'NONE') {
+	// 	const rowColumn = rowColumnProps(node)
+	// 	return tailwindContainer(node, childrenStr, rowColumn, {
+	// 		isRelative: false,
+	// 		isInput: false,
+	// 	})
+	// } else {
+	// 	// node.layoutMode === "NONE" && node.children.length > 1
+	// 	// children needs to be absolute
+	// 	return tailwindContainer(node, childrenStr, 'relative ', {
+	// 		isRelative: true,
+	// 		isInput: false,
+	// 	})
+	// }
+	const builder = [autoLayoutBuilder(node)].join(' ')
+
+	return `<div class="${builder}">\n${indentString(childrenStr)}\n</div>`
 }
 // properties named propSomething always take care of ","
 // sometimes a property might not exist, so it doesn't add ","
